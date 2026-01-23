@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ambiente de Teste de PDF</title>
+    <style>
+        /* --- ESTILOS GERAIS PARA SIMULAR O PAPEL NA TELA --- */
+        body {
+            background-color: #525659; /* Cor de fundo igual visualizador de PDF */
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* A FOLHA A4 */
+        .page {
+            background-color: white;
+            width: 210mm;
+            min-height: 297mm;
+            padding: 0 15mm; /* Margens laterais iguais ao seu projeto */
+            
+            /* Margens verticais simulam o espaço reservado para Header/Footer */
+            padding-top: 45mm;    /* Espaço do Header (35mm imagem + 10mm folga) */
+            padding-bottom: 55mm; /* Espaço do Footer (25mm imagem + 30mm folga) */
+            
+            box-sizing: border-box;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        /* --- SIMULAÇÃO VISUAL DO HEADER/FOOTER (Só para você ver onde não pode escrever) --- */
+        .simulated-header {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 35mm;
+            background: rgba(0, 255, 255, 0.1); border-bottom: 1px dashed cyan;
+            display: flex; align-items: center; justify-content: center; color: cyan; font-weight: bold;
+        }
+        .simulated-footer {
+            position: absolute;
+            bottom: 0; left: 0; width: 100%; height: 25mm;
+            background: rgba(0, 255, 255, 0.1); border-top: 1px dashed cyan;
+            display: flex; align-items: center; justify-content: center; color: cyan; font-weight: bold;
+        }
+
+        /* --- SEU CSS DO DOCUMENTO AQUI --- */
+        /* Copie esses estilos para dentro das tags style no constants.tsx se precisar */
+        .doc-title { text-align: center; margin-bottom: 20px; font-weight: bold; font-size: 16px; text-transform: uppercase; }
+        .doc-subtitle { text-align: start; margin-bottom: 20px; font-weight: bold; font-size: 16px; text-transform: uppercase; }
+        .doc-text { text-align: justify; margin-bottom: 20px; line-height: 1.5; font-size: 14px; }
+        .section-title { text-align: center; font-weight: bold; margin: 20px 0 10px 0; font-size: 14px; text-transform: uppercase; }
+        .bold {font-weight: bold;}
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        td { vertical-align: top; padding: 5px; }
+        .col-left { width: 50%; border-right: 1px solid #ccc; }
+        .col-right { width: 50%; padding-left: 10px; }
+        
+        .signature-area { margin-top: 50px; text-align: center; font-size: 14px; }
+        .line { border-top: 1px solid black; width: 250px; margin: 0 auto 5px auto; }
+
+    </style>
+</head>
+<body>
+
+    <div class="page">
+        <div class="simulated-header">CABEÇALHO VAI AQUI (ÁREA PROTEGIDA)</div>
+        <div class="simulated-footer">RODAPÉ VAI AQUI (ÁREA PROTEGIDA)</div>
+
+        <div class="doc-title">
+            TERMO DE ACORDO E AMPARO
+        </div>
+
+       <div class="doc-text">
+            Por este instrumento, a <strong>ASSOCIAÇÃO BR CLUBE DE BENEFÍCIOS</strong>, pessoa jurídica
+            de direito privado, CNPJ no 40.410.992/0001-40, com sede na Avenida Deputado
+            Jamel Cecílio, no 2496, Jardim Goiás, Município de Goiânia, Estado de Goiás, e, de
+            outro lado, o terceiro, <strong>${terceiro}</strong>, brasileiro, inscrita sob o CPF
+            no ${cpf}, portador do RG no ${rg} DGPC GO, ajustam, entre si, o
+            seguinte termo de amparo:
+       </div>
+
+       <div class="doc-text">
+            A BR CLUBE é um grupo associativo que realiza a divisão das despesas passadas e
+            ocorridas entre seus membros. A ela recai a responsabilidade de amparar os danos
+            sofridos e causados por seus associados, sendo, contudo, respeitados os limites e
+            condições determinadas pelo Regulamento Interno e nos termos do Art. 421, do
+            Código Civil.
+       </div>
+
+       <div class="doc-text">
+            Considerando o evento de acidente de trânsito ocorrido em <strong>${data_evento}</strong>, lavrado pelo
+            Boletim de Ocorrência no <strong>${boletim}</strong>, envolvendo o veículo do <strong>ASSOCIADO</strong> marca
+            <strong>${marca}</strong>, modelo <strong>${modelo}</strong>, ano <strong>${ano}</strong>, placa <strong>${placa}</strong>, cor <strong>${cor}</strong>, a BR CLUBE
+            compromete-se a reembolsar o terceiro <strong>${terceiro}</strong> no montante
+            de <strong>R$ ${valor} (${valor_extenso})</strong>, a fim de reiterar a boa-fé e o
+            compromisso com o bom atendimento de nossos associados e terceiros.
+       </div>
+
+       <div class="doc-subtitle">
+            FORMA DE PAGAMENTO
+       </div>
+
+       <div class="doc-text">
+            A quitação do valor será realizada exclusivamente por meio de transferência via PIX,
+            utilizando a chave PIX do terceiro, que corresponde à chave <strong>${pix}</strong>.
+            Com o pagamento supracitado, o <strong>terceiro ${terceiro}</strong>
+            reconhece, com fulcro no Art. 320, do Código Civil, não ter mais direito algum além do
+            que ora recebe, dando à BR CLUBE a mais plena, rasa, irrevogável e irretratável
+            quitação quanto a todas as despesas originadas do evento noticiado no Boletim de
+            Ocorrência acima referido, passada, presente e futura, para nada mais reclamar, em
+            Juízo ou fora dele, seja a que título for, renunciando expressamente a todo e qualquer
+            outro direito ou fato que possa vir a ter em decorrência do presente evento,
+            responsabilizando-se integralmente por qualquer medida que o associado ou qualquer
+            outro interessado venha a interpor face ao referido evento no que pertine ao referido
+            veículo.
+       </div>
+
+       <div class="doc-text">
+            Por fim, nos termos do Art. 104 do Código Civil, cumpre-se que ambas as partes são
+            capazes e que o presente acordo ocorreu sem nenhum vício, reconhecendo que a BR
+            CLUBE cumpriu integralmente o que se comprometeu por meio de seu Regulamento
+            Interno, não tendo mais, ambas as partes, nada a reclamar, conforme já mencionado,
+            em tempo algum, sobre os respectivos valores, títulos e condições.
+       </div>
+
+        <div class="signature-area">
+            <div style="text-align: right; margin-bottom: 40px;">Goiânia, ${data_hoje}</div>
+            
+            <div class="line"></div>
+            <div><strong>${terceiro}</strong></div>
+
+            <img src="/images/assinatura.png" style="width: 200px; margin-top: 40px;">
+        </div>
+
+        </div>
+
+</body>
+</html>

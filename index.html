@@ -1,0 +1,107 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BR Clube | Hub Operacional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Biblioteca para geração de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        
+        :root {
+            --navy-dark: #0f172a;
+            --navy-deep: #020617;
+            --light-navy: #00003D;
+            --cyan-br: #06b6d4;
+            --cyan-light: #ecfeff;
+            --bg-cyan-ice: #f5fdff;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-cyan-ice);
+            color: #1e293b;
+        }
+
+        .bg-navy-gradient {
+            background: linear-gradient(135deg, var(--navy-deep) 0%, var(--navy-dark) 100%);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .sidebar-item-active {
+            background: linear-gradient(90deg, rgba(6, 182, 212, 0.15) 0%, rgba(6, 182, 212, 0) 100%);
+            border-left: 4px solid var(--cyan-br);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+            box-shadow: 0 4px 14px 0 rgba(6, 182, 212, 0.39);
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(6, 182, 212, 0.45);
+        }
+
+        .input-focus:focus {
+            box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.1);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-cyan-ice);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Estilos específicos para o PDF */
+        .pdf-template {
+            padding: 40px;
+            color: #000;
+            background: #fff;
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+        }
+        .pdf-header {
+            border-bottom: 2px solid #06b6d4;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            text-align: center;
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div id="root"></div>
+<script type="module" src="/src/index.tsx"></script>
+<script src="https://cdn.botpress.cloud/webchat/v3.5/inject.js"></script>
+<script src="https://files.bpcontent.cloud/2026/01/23/17/20260123174007-ESP554MP.js" defer></script>
+</body>
+</html>
