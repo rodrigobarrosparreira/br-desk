@@ -65,7 +65,7 @@ export const DEPARTMENTS: Department[] = [
   { 
     id: 'assistance', 
     name: 'Assistência 24H', 
-    icon: 'fa-truck-medical', 
+    icon: 'fa-screwdriver-wrench', 
     description: 'Gestão de socorro e suporte emergencial',
     colorClass: 'bg-red-600',
     submodules: [
@@ -159,7 +159,7 @@ export const DEPARTMENTS: Department[] = [
   { 
     id: 'cancellations', 
     name: 'Cancelamentos', 
-    icon: 'fa-location-dot', 
+    icon: 'fa-ban', 
     description: 'Cancelamento de serviços',
     colorClass: 'bg-yellow-400',
     submodules: [
@@ -396,7 +396,7 @@ export const DEPARTMENTS: Department[] = [
   { 
     id: 'commercial', 
     name: 'Comercial', 
-    icon: 'fa-file-invoice-dollar', 
+    icon: 'fa-bag-shopping', 
     description: 'Comunicação comercial e promoções',
     colorClass: 'bg-green-600',
     submodules: [
@@ -773,9 +773,111 @@ Central de Agendamento\n
     ]
   },
   {
+    id: 'financing',
+    name: 'Financeiro',
+    icon: 'fa-sack-dollar',
+    description: 'Termos e Recibos Financeiros',
+    colorClass: 'bg-green-600',
+    submodules: [
+      {
+        id: 'recibo_prestador',
+        name: 'Recibo de Pagamento Prestador de Serviço',
+        isTerm: true,
+        pdfType: 'termo_recibo_prestador',
+        parentId: 'financing',
+        fields: [
+          { id: 'prestador', label: 'Prestador'},
+          { id: 'tipo_pessoa', label: 'Tipo de Pessoa', type: 'select', options: [
+            { value: 'pj', label: 'Pessoa Jurídica'},
+            { value: 'pf', label: 'Pessoa Física'}
+          ]},
+          { id: 'cnpj_cpf', label: 'CPF ou CNPJ'},
+          { id: 'valor', label: 'Valor', type: 'number'},
+          { id: 'valor_extenso', label: 'Valor por Extenso'},
+          { id: 'servico', label: 'Serviço Prestado'},
+          { id: 'associado', label: 'Associado'},
+          { id: 'placa', label: 'Placa'},
+          { id: 'data_servico', label: 'Data do Serviço', type: 'date'},
+          { id: 'data_hoje', label: 'Data de Hoje', type: 'date'}
+        ]
+      },
+      {
+        id: 'recibo_estagio',
+        name: 'Recibo de Pagamento Bolsa Estágio',
+        isTerm: true,
+        pdfType: 'termo_recibo_estagio',
+        parentId: 'financing',
+        fields: [
+          { id: 'estagiario', label: 'Estagiário'},
+          { id: 'cpf', label: 'CPF'},
+          { id: 'valor', label: 'Valor', type: 'number'},
+          { id: 'valor_extenso', label: 'Valor por Extenso'},
+          { id: 'data_hoje', label: 'Data de Hoje', type: 'date'}
+        ]
+      },
+      {
+        id: 'recibo_vale_transporte',
+        name: 'Recibo de Vale Transporte',
+        isTerm: true,
+        pdfType: 'termo_recibo_transporte',
+        parentId: 'financing',
+        fields: [
+          { id: 'estagiario', label: 'Estagiário'},
+          { id: 'cpf', label: 'CPF'},
+          { id: 'valor', label: 'Valor', type: 'number'},
+          { id: 'valor_extenso', label: 'Valor por Extenso'},
+          { id: 'data_hoje', label: 'Data de Hoje', type: 'date'}
+        ]
+      },
+      {
+        id: 'termo_cheques',
+        name: 'Termo de Entrega de Cheques',
+        isTerm: true,
+        pdfType: 'termo_recibo_cheque',
+        parentId: 'financing',
+        fields: [
+          { id: 'prestador', label: 'Prestador'},
+          { id: 'tipo_pessoa', label: 'Tipo de Pessoa', type: 'select', options: [
+            { value: 'pj', label: 'Pessoa Jurídica'},
+            { value: 'pf', label: 'Pessoa Física'}
+          ]},
+          { id: 'cnpj_cpf', label: 'CPF ou CNPJ'},
+          { id: 'valor', label: 'Valor', type: 'number'},
+          { id: 'valor_extenso', label: 'Valor por Extenso'},
+          { id: 'data_hoje', label: 'Data de Hoje', type: 'date'}
+        ]
+      },
+      {
+        id: 'termo_inden_pecun',
+        name: 'Termo de Indenização Pecuniária',
+        isTerm: true,
+        pdfType: 'termo_indenizacao_pecuniaria',
+        parentId: 'financing',
+        fields: [
+          { id: 'terceiro_nome', label: 'Nome Completo do Terceiro', required: true },
+          { id: 'terceiro_nacionalidade', label: 'Nacionalidade', placeholder: 'Ex: brasileiro' },
+          { id: 'terceiro_cpf', label: 'CPF do Terceiro', required: true },
+          { id: 'terceiro_rg', label: 'RG do Terceiro', required: true },
+          { id: 'terceiro_endereco', label: 'Endereço Completo (Rua, Qd, Lt, Bairro, Cidade)', type: 'textarea', required: true },
+          { id: 'data_evento', label: 'Data do Acidente', type: 'date', required: true },
+          { id: 'numero_boletim', label: 'Nº Boletim de Ocorrência', required: true },
+          { id: 'veiculo_marca', label: 'Marca do Veículo' },
+          { id: 'veiculo_modelo', label: 'Modelo do Veículo' },
+          { id: 'veiculo_ano', label: 'Ano do Veículo' },
+          { id: 'veiculo_placa', label: 'Placa do Veículo', required: true },
+          { id: 'veiculo_cor', label: 'Cor do Veículo' },
+          { id: 'valor_total', label: 'Valor Total da Indenização (R$)', required: true },
+          { id: 'valor_extenso', label: 'Valor por Extenso', placeholder: 'Ex: dois mil e cento e dez reais', required: true },
+          { id: 'condicoes_pagamento', label: 'Condições de Pagamento (Texto descritivo)', type: 'textarea', placeholder: 'Ex: da entrega de três cheques, com valor de R$ 703,00 cada um, com vencimentos subsequentes...', required: true },
+          { id: 'data_hoje', label: 'Data da Assinatura', type: 'date', required: true }
+        ]
+      }
+    ]
+  },
+  {
     id: 'tracking',
     name: 'Rastreamento',
-    icon: 'fa-map-marker-alt',
+    icon: 'fa-satellite-dish',
     description: 'Agendamento e termos de rastreamento',
     colorClass: 'bg-blue-600',
     submodules: [
@@ -1092,5 +1194,5 @@ Muito obrigado!
 ];
 
 export const DEPARTMENT_TEMPLATES: Record<DepartmentId, Template[]> = {
-  home: [], assistance: [], registration: [], tracking: [], events: [], cancellations: [], billing: [], commercial: [], legal: []
+  home: [], assistance: [], registration: [], tracking: [], events: [], cancellations: [], billing: [], commercial: [], legal: [], financing: [],
 };

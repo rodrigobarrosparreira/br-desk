@@ -637,3 +637,310 @@ export const CobrancaPDF = ({ data }: { data: any }) => (
     </BaseLayout>
   </Document>
 );
+
+
+
+export const ReciboPrestadorPDF = ({data}: { data: any}) => {
+
+  const dt_hoje = formatDate(data.data_hoje);
+  const dt_servico = formatDate(data.data_servico);
+  return (
+    <Document>
+      <BaseLayout>
+        <Text style={styles.title}>
+          DECLARAÇÃO DE RECEBIMENTO
+        </Text>
+
+        <Text style={styles.paragraph}>
+          Declaro, para os devidos fins, que {data.prestador}, {data.tipo_pessoa === 'pj' ? 'inscrito no CNPJ sob o n° ' : 'inscrito no CPF sob o n° '}{data.cnpj_cpf}, recebeu da Associação 
+          BR CLUBE DE BENEFÍCIOS, inscrita no CNPJ sob o n° 40.410.992/0001-40, um 
+          pagamento de R$ {data.valor} ({data.valor_extenso} reais), referente ao serviço de {data.servico} 
+          para o(a) associado(a) {data.associado}, veículo de placa {data.placa}, serviço realizado dia {dt_servico}.
+        </Text>
+
+        <Text style={[styles.paragraph, {textAlign: 'left'}]}>
+          Por ser verdade, assino
+        </Text>
+
+        <Text style={[styles.paragraph, { textAlign: 'right', marginTop: 30 }]}>
+          Goiânia, {dt_hoje}.
+        </Text>
+
+        {/* Assinatura */}
+        <View style={styles.signatureBlock} wrap={false}>
+          <View style={styles.signatureLine} />
+          
+          
+          <Text style={{ fontSize: 10 }}>{data.prestador}</Text>
+
+          {/* IMAGEM CORRIGIDA */}
+          {/* <Image 
+             src="/images/assinatura.png" 
+             style={{ width: 150, height: 'auto', marginTop: 10 }}     
+          /> */}
+        </View>
+
+      </BaseLayout>
+    </Document>
+  )
+
+
+}
+
+export const ReciboPagamentoEstagioPDF = ({data}: { data: any}) => {
+
+  const dt_hoje = formatDate(data.data_hoje);
+
+  return (
+    <Document>
+      <BaseLayout>
+        <Text style={styles.title}>
+          DECLARAÇÃO DE RECEBIMENTO
+        </Text>
+
+        <Text style={styles.paragraph}>
+          Declaro, para os devidos fins, que {data.estagiario}, portador do CPF {data.cpf}, recebeu da Associação 
+          BR CLUBE DE BENEFÍCIOS, inscrita no CNPJ sob o n° 40.410.992/0001-40, o pagamento da bolsa estágio 
+          no valor de R$ {data.valor} ({data.valor_extenso} reais).
+        </Text>
+
+        <Text style={[styles.paragraph, {textAlign: 'left'}]}>
+          Por ser verdade, assino
+        </Text>
+
+        <Text style={[styles.paragraph, { textAlign: 'right', marginTop: 30 }]}>
+          Goiânia, {dt_hoje}.
+        </Text>
+
+        {/* Assinatura */}
+        <View style={styles.signatureBlock} wrap={false}>
+          <View style={styles.signatureLine} />
+          
+          
+          <Text style={{ fontSize: 10 }}>{data.estagiario}</Text>
+
+          {/* IMAGEM CORRIGIDA */}
+          {/* <Image 
+             src="/images/assinatura.png" 
+             style={{ width: 150, height: 'auto', marginTop: 10 }}     
+          /> */}
+        </View>
+
+      </BaseLayout>
+    </Document>
+  )
+
+
+}
+
+
+export const ReciboPagamentoTransportePDF = ({data}: { data: any}) => {
+
+  const dt_hoje = formatDate(data.data_hoje);
+
+  return (
+    <Document>
+      <BaseLayout>
+        <Text style={styles.title}>
+          DECLARAÇÃO DE RECEBIMENTO
+        </Text>
+
+        <Text style={styles.paragraph}>
+          Declaro, para os devidos fins, que {data.estagiario}, portador do CPF {data.cpf}, recebeu da Associação 
+          BR CLUBE DE BENEFÍCIOS, inscrita no CNPJ sob o n° 40.410.992/0001-40, o pagamento do vale transporte 
+          no valor de R$ {data.valor} ({data.valor_extenso} reais).
+        </Text>
+
+        <Text style={[styles.paragraph, {textAlign: 'left'}]}>
+          Por ser verdade, assino
+        </Text>
+
+        <Text style={[styles.paragraph, { textAlign: 'right', marginTop: 30 }]}>
+          Goiânia, {dt_hoje}.
+        </Text>
+
+        {/* Assinatura */}
+        <View style={styles.signatureBlock} wrap={false}>
+          <View style={styles.signatureLine} />
+          
+          
+          <Text style={{ fontSize: 10 }}>{data.estagiario}</Text>
+
+          {/* IMAGEM CORRIGIDA */}
+          {/* <Image 
+             src="/images/assinatura.png" 
+             style={{ width: 150, height: 'auto', marginTop: 10 }}     
+          /> */}
+        </View>
+
+      </BaseLayout>
+    </Document>
+  )
+
+
+}
+
+
+export const ReciboChequePDF = ({data}: { data: any}) => {
+
+  const dt_hoje = formatDate(data.data_hoje);
+
+  return (
+    <Document>
+      <BaseLayout>
+        <Text style={styles.title}>
+          DECLARAÇÃO DE RECEBIMENTO
+        </Text>
+
+        <Text style={styles.paragraph}>
+          Declaro, para os devidos fins, que {data.prestador}, {data.tipo_pessoa === 'pj' ? 'inscrito no CNPJ sob o n° ' : 'inscrito no CPF sob o n° '}{data.cnpj_cpf}, recebeu da Associação 
+          BR CLUBE DE BENEFÍCIOS, inscrita no CNPJ sob o n° 40.410.992/0001-40, um 
+          cheque no valor de R$ {data.valor} ({data.valor_extenso} reais).
+        </Text>
+
+        <Text style={[styles.paragraph, {textAlign: 'left'}]}>
+          Por ser verdade, assino
+        </Text>
+
+        <Text style={[styles.paragraph, { textAlign: 'right', marginTop: 30 }]}>
+          Goiânia, {dt_hoje}.
+        </Text>
+
+        {/* Assinatura */}
+        <View style={styles.signatureBlock} wrap={false}>
+          <View style={styles.signatureLine} />
+          
+          
+          <Text style={{ fontSize: 10 }}>{data.prestador}</Text>
+
+          {/* IMAGEM CORRIGIDA */}
+          {/* <Image 
+             src="/images/assinatura.png" 
+             style={{ width: 150, height: 'auto', marginTop: 10 }}     
+          /> */}
+        </View>
+
+      </BaseLayout>
+    </Document>
+  )
+
+
+}
+
+// export const TermoIndenizacaoPecuniaria = ({data}: { data: any}) => {
+
+//   return (
+
+//     <Document>
+//       <BaseLayout>
+//         <Text style={styles.title}>TERMO DE ACORDO E AMPARO</Text>
+
+//         <Text style={styles.paragraph}>
+//           Por este instrumento, a <Text style={styles.bold}>ASSOCIAÇÃO BR CLUBE DE BENEFÍCIOS</Text>, 
+//           pessoa jurídica de direito privado, CNPJ nº 40.410.992/0001-40, com sede na Avenida Deputado Jamel Cecílio, 
+//           2496, Jardim Goiás, Município de Goiânia, Estado de Goiás e, de outro lado, o terceiro, {data.terceiro}, 
+//           brasileiro, inscrito sob o CPF nº {data.cpf}, C. l. 
+//         </Text>
+
+//       </BaseLayout>
+//     </Document>
+
+//   )
+
+// }
+
+export const TermoIndenizacaoPecuniaria = ({ data }: { data: any }) => {
+  // Formatação de data simples caso venha do formulário
+  const dt_hoje = data.data_hoje ? data.data_hoje.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR');
+  const dt_evento = formatDate(data.data_evento);
+  return (
+    <Document>
+      <BaseLayout>
+        
+        <Text style={styles.title}>
+          TERMO DE ACORDO E AMPARO
+        </Text>
+
+        {/* 1. Preâmbulo e Qualificação das Partes */}
+        <Text style={styles.paragraph}>
+          Por este instrumento, a <Text style={styles.bold}>ASSOCIAÇÃO BR CLUBE DE BENEFÍCIOS</Text>, pessoa jurídica de direito privado,
+          CNPJ n° 40.410.992/0001-40, com sede na Avenida Deputado Jamel Cecílio, 2496, Jardim Goiás,
+          Município de Goiânia, Estado de Goiás e, de outro lado, o <Text style={styles.bold}>terceiro, {data.terceiro_nome}</Text>,
+          {data.terceiro_nacionalidade || 'brasileiro'}, inscrito sob o CPF n° {data.terceiro_cpf}, C.I. n° {data.terceiro_rg}, residente e domiciliado na 
+          {data.terceiro_endereco}, ajustam, entre si, o seguinte termo de amparo:
+        </Text>
+
+        {/* 2. Contexto BR Clube (Texto Fixo) */}
+        <Text style={styles.paragraph}>
+          A Br Clube é um grupo associativo que realiza a divisão das despesas passadas e ocorridas entre seus
+          membros. A ela recai a responsabilidade de amparar os danos sofridos e causados por seus
+          associados, sendo, contudo, respeitados os limites e condições determinadas pelo Regulamento
+          Interno e <Text style={styles.bold}>nos termos do Art. 421, do Código Civil.</Text>
+        </Text>
+
+        {/* 3. Dados do Evento/Veículo */}
+        <Text style={styles.paragraph}>
+          Considerando o(a) evento de acidente de trânsito ocorrido(a) em {dt_evento}, lavrado pelo Boletim
+          de Ocorrência de nº {data.numero_boletim}, envolvendo o veículo do terceiro marca {data.veiculo_marca}, modelo {data.veiculo_modelo}, 
+          ano {data.veiculo_ano}, placa {data.veiculo_placa}, cor {data.veiculo_cor}:
+        </Text>
+
+        {/* 4. Indenização e Pagamento */}
+        <Text style={styles.paragraph}>
+          A BR CLUBE, a título de indenização por todas as despesas ocorridas com o TERCEIRO e o veículo,
+          realizará o pagamento do <Text style={styles.bold}>montante de R$ {data.valor_total} ({data.valor_extenso})</Text>, referente a
+          indenização correspondente ao conserto do veículo. A quitação do valor se dará por meio de {data.condicoes_pagamento}.
+        </Text>
+
+        {/* 5. Quitação Legal */}
+        <Text style={styles.paragraph}>
+          Com o pagamento supracitado, o TERCEIRO <Text style={styles.bold}>{data.terceiro_nome}</Text>, reconhece, <Text style={styles.bold}>com fulcro no Art. 320, do Código Civil</Text>, não ter mais direito algum além do que ora recebe, dando à BR CLUBE a mais
+          plena, rasa, irrevogável e irretratável quitação quanto a todas as despesas originadas do evento
+          noticiado no Boletim de Ocorrência de nº {data.numero_boletim}, passada, presente e futura, para nada mais
+          reclamar, em Juízo ou fora dele, seja a que título for, renunciando expressamente a todo e qualquer
+          outro direito ou fato que possa vir a ter em decorrência do presente evento, responsabilizando-se
+          integralmente por qualquer medida que terceiro ou qualquer outro interessado venha a interpor face
+          ao referido evento no que pertine ao referido veículo.
+        </Text>
+
+        {/* 6. Capacidade Civil (Texto Fixo - Página 2) */}
+        <Text style={styles.paragraph}>
+          Por fim, <Text style={styles.bold}>nos termos do Art. 104 do Código Civil</Text>, cumpre-se que ambas as partes são capazes e que o
+          presente acordo ocorreu sem nenhum vício, reconhecendo que a BR CLUBE, cumpriu integralmente o
+          que se comprometeu por meio de seu Regulamento Interno, não tendo mais, ambas as partes, nada
+          a reclamar, conforme já mencionado, em tempo algum sobre os respectivos valores, títulos e
+          condições.
+        </Text>
+
+        {/* Data */}
+        <Text style={[styles.paragraph, { textAlign: 'right', marginTop: 30 }]}>
+          Goiânia, {dt_hoje}.
+        </Text>
+
+        {/* Assinaturas */}
+        <View style={{ marginTop: 20, flexDirection: 'column', gap: 40 }}>
+          
+          {/* Assinatura do Terceiro */}
+          <View style={styles.signatureBlock} wrap={false}>
+             {/* Local para assinatura digital Gov.br se houver imagem, ou linha padrão */}
+             <View style={styles.signatureLine} />
+             <Text style={[styles.paragraph, styles.bold]}>{data.terceiro_nome}</Text>
+             <Text style={styles.paragraph}>TERCEIRO</Text>
+          </View>
+
+          {/* Assinatura BR Clube (Com imagem se disponível) */}
+          <View style={styles.signatureBlock} wrap={false}>
+            {/* Se tiver a imagem da assinatura da BR Clube salva no projeto: */}
+            <Image 
+             src="/images/assinatura.png" 
+             style={{ width: 150, height: 'auto', marginTop: 10 }}/>
+            <View style={styles.signatureLine} />
+            <Text style={[styles.paragraph, styles.bold]}>ASSOCIAÇÃO BR CLUBE DE BENEFÍCIOS</Text>
+          </View>
+
+        </View>
+
+      </BaseLayout>
+    </Document>
+  );
+};
