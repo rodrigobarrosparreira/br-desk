@@ -1,7 +1,9 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image, Font } from '@react-pdf/renderer';
 import { textAlign } from 'html2canvas/dist/types/css/property-descriptors/text-align';
-
+import header from './assets/header.png'
+import footer from './assets/footer.png'
+import assinatura from './assets/assinatura.png'
 // --- 1. ESTILOS (Ajustados para os nomes que você usou no código) ---
 const styles = StyleSheet.create({
   page: {
@@ -101,7 +103,7 @@ const BaseLayout = ({ children }: { children: React.ReactNode }) => (
     {/* CABEÇALHO */}
     <View style={styles.headerFixed} fixed>
       <Image 
-        src="/images/header.png" 
+        src={header} 
         style={{ 
           width: '100vw', // Força a largura TOTAL da folha
           // height: NÃO DEFINIR (Isso faz a altura ser automática/proporcional)
@@ -114,7 +116,7 @@ const BaseLayout = ({ children }: { children: React.ReactNode }) => (
     {/* RODAPÉ */}
     <View style={styles.footerFixed} fixed>
       <Image 
-        src="/images/footer.png" 
+        src={footer} 
         style={{ 
           width: '100vw', // Força a largura TOTAL da folha
           // height: NÃO DEFINIR
@@ -211,7 +213,7 @@ export const TermoAcordoPDF = ({ data }: { data: any }) => {
 
           {/* IMAGEM CORRIGIDA */}
           <Image 
-             src="/images/assinatura.png" 
+             src={assinatura} 
              style={{ width: 150, height: 'auto', marginTop: 10 }}     
           />
         </View>
@@ -273,7 +275,7 @@ export const TermoCancelamentoPDF = ({data}: {data: any}) => {
 
           {/* IMAGEM CORRIGIDA */}
           <Image 
-             src="/images/assinatura.png" 
+             src={assinatura} 
              style={{ width: 150, height: 'auto', marginTop: 10 }}     
           />
         </View>
@@ -337,7 +339,7 @@ export const EntregaVeiculoPDF = ({data}: { data: any}) => {
 
           {/* IMAGEM CORRIGIDA */}
           {/* <Image 
-             src="/images/assinatura.png" 
+             src={assinatura} 
              style={{ width: 150, height: 'auto', marginTop: 10 }}     
           /> */}
         </View>
@@ -427,7 +429,7 @@ export const TermoAcordoAmparoPDF = ({data}: {data: any}) =>{
 
           {/* IMAGEM CORRIGIDA */}
           <Image 
-             src="/images/assinatura.png" 
+             src={assinatura}
              style={{ width: 150, height: 'auto', marginTop: 10 }}     
           />
         </View>
@@ -487,7 +489,7 @@ export const TermoRecebimentoRastreadorPDF = ({data }: {data: any }) => {
 
           {/* IMAGEM CORRIGIDA */}
           {/* <Image 
-             src="/images/assinatura.png" 
+             src={assinatura}
              style={{ width: 150, height: 'auto', marginTop: 10 }}     
           /> */}
         </View>
@@ -609,7 +611,7 @@ export const RecebimentoPecasPDF = ({ data }: { data: any }) => {
         {/* Assinatura */}
         <View style={styles.signatureBlock} wrap={false}>
           {/* Se tiver imagem, descomente: */}
-          {/* <Image src="/images/assinatura.png" style={{ width: 150, height: 'auto' }} /> */}
+          {/* <Image src={assinatura} style={{ width: 150, height: 'auto' }} /> */}
           
           <View style={styles.signatureLine} />
           <Text style={[styles.bold, { fontSize: 11 }]}>{data.responsavel}</Text>
@@ -675,7 +677,7 @@ export const ReciboPrestadorPDF = ({data}: { data: any}) => {
 
           {/* IMAGEM CORRIGIDA */}
           {/* <Image 
-             src="/images/assinatura.png" 
+             src={assinatura} 
              style={{ width: 150, height: 'auto', marginTop: 10 }}     
           /> */}
         </View>
@@ -721,7 +723,7 @@ export const ReciboPagamentoEstagioPDF = ({data}: { data: any}) => {
 
           {/* IMAGEM CORRIGIDA */}
           {/* <Image 
-             src="/images/assinatura.png" 
+             src={assinatura} 
              style={{ width: 150, height: 'auto', marginTop: 10 }}     
           /> */}
         </View>
@@ -768,7 +770,7 @@ export const ReciboPagamentoTransportePDF = ({data}: { data: any}) => {
 
           {/* IMAGEM CORRIGIDA */}
           {/* <Image 
-             src="/images/assinatura.png" 
+             src={assinatura}
              style={{ width: 150, height: 'auto', marginTop: 10 }}     
           /> */}
         </View>
@@ -815,7 +817,7 @@ export const ReciboChequePDF = ({data}: { data: any}) => {
 
           {/* IMAGEM CORRIGIDA */}
           {/* <Image 
-             src="/images/assinatura.png" 
+             src={assinatura}
              style={{ width: 150, height: 'auto', marginTop: 10 }}     
           /> */}
         </View>
@@ -865,7 +867,7 @@ export const TermoIndenizacaoPecuniaria = ({ data }: { data: any }) => {
         <Text style={styles.paragraph}>
           Por este instrumento, a <Text style={styles.bold}>ASSOCIAÇÃO BR CLUBE DE BENEFÍCIOS</Text>, pessoa jurídica de direito privado,
           CNPJ n° 40.410.992/0001-40, com sede na Avenida Deputado Jamel Cecílio, 2496, Jardim Goiás,
-          Município de Goiânia, Estado de Goiás e, de outro lado, o <Text style={styles.bold}>terceiro, {data.terceiro_nome}</Text>,
+          Município de Goiânia, Estado de Goiás e, de outro lado, o <Text style={styles.bold}>terceiro, {data.terceiro_nome}</Text>, 
           {data.terceiro_nacionalidade || 'brasileiro'}, inscrito sob o CPF n° {data.terceiro_cpf}, C.I. n° {data.terceiro_rg}, residente e domiciliado na 
           {data.terceiro_endereco}, ajustam, entre si, o seguinte termo de amparo:
         </Text>
@@ -932,7 +934,7 @@ export const TermoIndenizacaoPecuniaria = ({ data }: { data: any }) => {
           <View style={styles.signatureBlock} wrap={false}>
             {/* Se tiver a imagem da assinatura da BR Clube salva no projeto: */}
             <Image 
-             src="/images/assinatura.png" 
+             src={assinatura}
              style={{ width: 150, height: 'auto', marginTop: 10 }}/>
             <View style={styles.signatureLine} />
             <Text style={[styles.paragraph, styles.bold]}>ASSOCIAÇÃO BR CLUBE DE BENEFÍCIOS</Text>

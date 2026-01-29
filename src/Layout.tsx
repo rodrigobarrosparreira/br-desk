@@ -5,6 +5,7 @@ import { useAuth } from './contexts/AuthContext';
 import { checkPermission } from './utils/permissions';
 import { useNavigate, useLocation } from 'react-router-dom'; // Importante para navegação
 import Chatbot from './services/Chatbot'
+import logoBrClubeQuadrada from './assets/brclube2.png'
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -60,8 +61,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeDept, activeSubmodule, 
 
         <div className="p-8 mb-4">
           <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'}`}>
-            <div className="bg-white rounded-xl w-10 h-10 flex items-center justify-center shadow-lg">
-              <span className="text-navy-deep font-black text-lg">BR</span>
+            <div className="rounded-xl w-10 h-10 flex items-center justify-center shadow-lg">
+              <img src={logoBrClubeQuadrada} className='rounded-sm'/>
             </div>
             {!isCollapsed && (
               <div>
