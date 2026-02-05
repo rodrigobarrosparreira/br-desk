@@ -23,8 +23,6 @@ const getPdfComponent = (type: string | undefined, data: any) => {
 };
 
 // --- 2. COMPONENTE ISOLADO E MEMOIZADO (A MÁGICA DA PERFORMANCE) ---
-// Este componente SÓ atualiza quando a prop 'data' muda de referência.
-// Como passamos 'previewData' (que só muda no clique), ele ignora a digitação.
 const IsolatedPDFViewer = memo(({ type, data }: { type: string, data: any }) => {
   const doc = getPdfComponent(type, data);
   if (!doc) return <div className="text-red-500 p-4">Erro: Template não encontrado.</div>;
@@ -35,9 +33,6 @@ const IsolatedPDFViewer = memo(({ type, data }: { type: string, data: any }) => 
     </PDFViewer>
   );
 }, (prevProps, nextProps) => {
-  // Função de comparação personalizada:
-  // Retorna TRUE se os dados forem iguais (evita renderização)
-  // Retorna FALSE se os dados mudaram (permite renderização)
   return JSON.stringify(prevProps.data) === JSON.stringify(nextProps.data);
 });
 
@@ -115,7 +110,90 @@ export const RepeaterField: React.FC<RepeaterProps> = ({ field, value = [], onCh
   );
 };
 
-// --- 5. FORM MIRROR OTIMIZADO ---
+// --- 5. COMPONENTE DE BUSCA DE PRESTADORES (NOVO) ---
+export interface PrestadorResultado {
+  origem: 'interno' | 'externo';
+  nome: string;
+  telefone?: string;
+  endereco: string;
+  rating?: string | number;
+  place_id?: string;
+}
+
+interface ProviderSearchProps {
+  onSearch: () => void;
+  isSearching: boolean;
+  results: PrestadorResultado[] | null;
+  onSelect: (prestador: PrestadorResultado) => void;
+}
+
+export const ProviderSearch: React.FC<ProviderSearchProps> = ({ onSearch, isSearching, results, onSelect }) => {
+  return (
+    <div className="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-2xl animate-in fade-in slide-in-from-top-4">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h4 className="font-black text-slate-700 uppercase tracking-widest text-xs">Busca Inteligente</h4>
+          <p className="text-xs text-slate-500">Encontre parceiros ou prestadores próximos ao local.</p>
+        </div>
+        <button 
+          type="button"
+          onClick={onSearch}
+          disabled={isSearching}
+          className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all shadow-md hover:shadow-lg disabled:opacity-50"
+        >
+          {isSearching ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-magnifying-glass-location"></i>}
+          {isSearching ? 'Buscando...' : 'Buscar Prestadores'}
+        </button>
+      </div>
+
+      {results && (
+        <div className="space-y-2 mt-4 max-h-80 overflow-y-auto custom-scrollbar pr-2">
+          {results.length === 0 ? (
+            <div className="text-center text-slate-400 text-xs py-4 italic">Nenhum prestador encontrado nesta região.</div>
+          ) : (
+            results.map((p, idx) => (
+              <div key={idx} className={`p-3 rounded-xl border flex items-center justify-between transition-all hover:shadow-md ${p.origem === 'interno' ? 'bg-green-50/50 border-green-200 hover:border-green-300' : 'bg-white border-slate-100 hover:border-cyan-200'}`}>
+                
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-bold text-sm text-slate-700">{p.nome}</span>
+                    {p.origem === 'interno' && (
+                      <span className="bg-green-100 text-green-700 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border border-green-200">Parceiro</span>
+                    )}
+                    {p.rating && p.rating !== '-' && (
+                      <span className="text-amber-500 text-[10px] font-bold flex items-center bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
+                        <i className="fa-solid fa-star mr-1 text-[9px]"></i>{p.rating}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                    <i className="fa-solid fa-location-dot opacity-50"></i> {p.endereco}
+                  </div>
+                  {p.telefone && (
+                     <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                       <i className="fa-solid fa-phone opacity-50"></i> {p.telefone}
+                     </div>
+                  )}
+                </div>
+
+                <button 
+                  type="button"
+                  onClick={() => onSelect(p)}
+                  className="ml-4 text-cyan-600 hover:bg-cyan-50 px-3 py-2 rounded-lg text-xs font-bold transition-colors"
+                >
+                  Selecionar
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+// --- 6. FORM MIRROR OTIMIZADO ---
 interface FormMirrorProps {
   data: Record<string, string>;
   title: string;
@@ -128,23 +206,19 @@ interface FormMirrorProps {
 export const FormMirror: React.FC<FormMirrorProps> = ({ data, title, generateMessage, isTerm, isBlank, pdfType }) => {
   const [copied, setCopied] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  
-  // ESTADOS PARA OTIMIZAÇÃO (Snapshot)
   const [previewData, setPreviewData] = useState(data);
   const [isDirty, setIsDirty] = useState(false);
 
-  // Detecta que houve digitação, mas NÃO atualiza o previewData
   useEffect(() => {
     if (JSON.stringify(data) !== JSON.stringify(previewData)) {
       setIsDirty(true);
     } else {
-      setIsDirty(false); // Se voltou ao estado original, remove o aviso
+      setIsDirty(false);
     }
   }, [data, previewData]);
 
-  // Só atualiza o PDF quando clicado
   const handleUpdatePreview = () => {
-    setPreviewData(data); // <--- AQUI A MÁGICA: Só agora o IsolatedPDFViewer vai receber dados novos
+    setPreviewData(data);
     setIsDirty(false);
   };
 
@@ -153,12 +227,9 @@ export const FormMirror: React.FC<FormMirrorProps> = ({ data, title, generateMes
   const isHtmlContent = (c: string) => /<[^>]+>/.test(c);
 
   const renderPreview = () => {
-    // CASO A: PDF (Usando o componente isolado)
     if (isTerm && pdfType) {
       return (
         <div className="relative h-[600px] w-full bg-slate-100 rounded-2xl overflow-hidden border border-slate-200">
-          
-          {/* Overlay de Aviso */}
           {isDirty && (
             <div className="absolute inset-0 z-50 bg-white/60 backdrop-blur-[2px] flex flex-col items-center justify-center transition-all animate-in fade-in duration-200">
               <p className="text-slate-800 font-bold mb-3 text-sm shadow-sm">Há alterações não visualizadas</p>
@@ -170,14 +241,11 @@ export const FormMirror: React.FC<FormMirrorProps> = ({ data, title, generateMes
               </button>
             </div>
           )}
-
-          {/* Componente Blindado contra Re-renders desnecessários */}
           <IsolatedPDFViewer type={pdfType} data={previewData} />
         </div>
       );
     }
 
-    // CASO B: WhatsApp (Texto/HTML) - Renderização direta pois é leve
     return (
        <div className="max-h-[55vh] overflow-y-auto pr-2 custom-scrollbar">
           {hasData ? (
@@ -197,16 +265,11 @@ export const FormMirror: React.FC<FormMirrorProps> = ({ data, title, generateMes
 
   const handleDownloadNewPdf = async () => {
     if (!hasData) return;
-    
-    // Sempre usa os dados mais recentes (data) para o download, não o previewData
     const dataToUse = data; 
-    
     setIsGenerating(true);
-
     try {
       const MyDocComponent = getPdfComponent(pdfType, dataToUse);
       if (!MyDocComponent) return;
-
       const blob = await pdf(MyDocComponent).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -216,7 +279,6 @@ export const FormMirror: React.FC<FormMirrorProps> = ({ data, title, generateMes
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
       alert("Houve um erro ao gerar o documento.");
@@ -240,7 +302,6 @@ export const FormMirror: React.FC<FormMirrorProps> = ({ data, title, generateMes
     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xl sticky top-8 overflow-hidden">
       <div className="absolute right-0 top-0 w-32 h-32 bg-cyan-50 rounded-full -mr-16 -mt-16 blur-3xl opacity-50 pointer-events-none"></div>
       <div className="relative z-10">
-        
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-cyan-600">
@@ -252,11 +313,9 @@ export const FormMirror: React.FC<FormMirrorProps> = ({ data, title, generateMes
           </div>
           <i className={`fa-solid ${isTerm ? 'fa-file-pdf text-red-500' : 'fa-brands fa-whatsapp text-green-500'} text-lg`}></i>
         </div>
-
         <div className="space-y-4">
            {renderPreview()}
         </div>
-
         <div className="mt-8 space-y-3">
           {isTerm && pdfType ? (
               <button
@@ -289,7 +348,7 @@ export const FormMirror: React.FC<FormMirrorProps> = ({ data, title, generateMes
   );
 };
 
-// --- 6. EXPORTS FINAIS ---
+// --- 7. EXPORTS FINAIS ---
 export const FormCard: React.FC<{ title: string; children: React.ReactNode; icon: string }> = ({ title, children, icon }) => (
   <div className="bg-white rounded-2xl shadow-lg shadow-slate-200/40 border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500 h-full">
     <div className="bg-slate-50/50 px-6 py-5 border-b border-slate-100 flex items-center space-x-4">

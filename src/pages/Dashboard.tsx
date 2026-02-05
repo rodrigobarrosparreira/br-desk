@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import Layout from '../Layout';
 import { useAuth } from '../contexts/AuthContext';
-import { DepartmentId, FormSubmissionStatus, Submodule, Template } from '../../types'; // Ajuste o caminho '../types' se necessário
+import { DepartmentId, FormSubmissionStatus, Submodule, Template } from '../../types';
 import { DEPARTMENTS } from '../constants';
-import { Input, Select, TextArea, FormCard, SuccessMessage, FormMirror, RepeaterField } from '../components/FormComponents';
+// 1. IMPORTAR O ProviderSearch AQUI
+import { Input, Select, TextArea, FormCard, SuccessMessage, FormMirror, RepeaterField, ProviderSearch, PrestadorResultado } from '../components/FormComponents';
 import { checkPermission } from '../utils/permissions';
 import { formatDateTime } from '../utils/Formatters';
-// --- CONFIGURAÇÕES SENSÍVEIS (Agora ficam protegidas pelo Lazy Loading) ---
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz27OajWuPo27GkycSofDwbvbc9IKA6MeCgdjzbprXcQ82Uvl9EpnxgPqRo4fAcfsqoPg/exec";
-const API_TOKEN = "brclube-2026"; // Token de segurança que definimos
+
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2K5KU6wJOWXfP9DYlXULgx8-LGn_uw9JgSnQ6vQ5wEzXcaVTxFxjoH_bmtKQdErT87g/exec";
+const API_TOKEN = "brclube-2026"; 
 
 const Dashboard: React.FC = () => {
   const { logout, profile } = useAuth();
@@ -22,6 +23,10 @@ const Dashboard: React.FC = () => {
   const [activeTemplate, setActiveTemplate] = useState<Template | null>(null);
   const [status, setStatus] = useState<FormSubmissionStatus>({ submitting: false, success: null, error: null });
   const [formData, setFormData] = useState<Record<string, any>>({});
+  
+  // States da Busca
+  const [isSearching, setIsSearching] = useState(false);
+  const [providerResults, setProviderResults] = useState<PrestadorResultado[] | null>(null);
 
   const handleNavigate = (deptId: DepartmentId, submoduleId: string | null) => {
     setActiveDept(deptId);
@@ -29,6 +34,7 @@ const Dashboard: React.FC = () => {
     setActiveTemplate(null);
     setStatus({ submitting: false, success: null, error: null });
     setFormData({});
+    setProviderResults(null); // Limpa resultados ao mudar de tela
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -49,8 +55,6 @@ const Dashboard: React.FC = () => {
   const currentSub = getAllSubmodules().find(s => s.id === activeSubmodule);
   const isTerm = currentSub?.isTerm || activeTemplate?.isTerm;
   const isBlank = currentSub?.isBlank;
-
-  // --- LÓGICA DO REGISTRO (GOOGLE SHEETS) ---
   const isFormularioIntegrado = activeSubmodule === 'abertura_assistencia' || activeSubmodule === 'fechamento_assistencia';
 
   const handleRegister = async () => {
@@ -62,7 +66,7 @@ const Dashboard: React.FC = () => {
       ...formData,
       form_id: activeSubmodule,
       user_email: profile?.email,
-      token_acesso: API_TOKEN // <--- TOKEN ADICIONADO AQUI
+      token_acesso: API_TOKEN
     };
 
     try {
@@ -85,40 +89,42 @@ const Dashboard: React.FC = () => {
 
   const generateCopyMessage = () => {
     let templateContent = "";
-    if (activeTemplate) { templateContent = activeTemplate.content; } 
-    else if (currentSub?.messageTemplate) { 
-        templateContent = typeof currentSub.messageTemplate === 'function' ? currentSub.messageTemplate(formData) : currentSub.messageTemplate; 
-    } 
-    else { return ""; }
+    if (activeTemplate) { 
+        templateContent = activeTemplate.content; 
+    } else if (currentSub?.messageTemplate) { 
+        templateContent = typeof currentSub.messageTemplate === 'function' 
+          ? currentSub.messageTemplate(formData) 
+          : currentSub.messageTemplate; 
+    } else { 
+        return ""; 
+    }
 
-    const processedData = { ...formData };
     let message = templateContent;
-
-    // Lista dos IDs dos campos que são datas e precisam de formatação
     const dateFields = [
-        'data-hora', 
-        'hora_solicitacao', 
-        'hora_autorizacao', 
-        'hora_prestador', 
-        'chegada_prestador', 
-        'encerramento_atendimento'
+        'data-hora', 'hora_solicitacao', 'hora_autorizacao', 
+        'hora_prestador', 'chegada_prestador', 'encerramento_atendimento'
     ];
 
-    Object.entries(processedData).forEach(([key, value]) => {
-      let finalValue = (value as string) || `[${key}]`;
-
-      // Se o campo for uma data, formata antes de substituir
-      if (dateFields.includes(key) && value) {
-          finalValue = formatDateTime(value as string);
-      }
-
-      message = message.replace(new RegExp(`{{${key}}}`, 'g'), finalValue);
+    message = message.replace(/{{([^}]+)}}/g, (_, key) => {
+        const value = formData[key];
+        if (!value) return "";
+        if (dateFields.includes(key)) {
+            return formatDateTime(value as string);
+        }
+        return value as string;
     });
     
     return message;
   };
 
   const renderField = (field: any) => {
+    if(field.showIf){
+      const watchingValue = formData[field.showIf.field];
+      if(watchingValue !== field.showIf.value){
+        return null;
+      }
+    }
+
     switch(field.type) {
       case 'select': return <Select key={field.id} name={field.id} label={field.label} required={field.required} options={field.options || []} value={formData[field.id] || ''} onChange={handleInputChange} />;
       case 'repeater': return <RepeaterField key={field.id} field={field} value={formData[field.id] || []} onChange={(newArray) => setFormData({...formData, [field.id]: newArray})} />;
@@ -130,14 +136,66 @@ const Dashboard: React.FC = () => {
   const handleClearData = () => {
     if (window.confirm("Tem certeza que deseja limpar todos os campos?")) {
       setFormData({}); 
+      setProviderResults(null);
       setStatus({ submitting: false, success: null, error: null });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
+  // --- FUNÇÕES DE BUSCA ---
+  const handleSearchProviders = async () => {
+    const enderecoBusca = formData['endereco'] || formData['local_ocorrencia'] || formData['cidade_origem'];
+    const tipoServico = formData['tipo_servico'];
+
+    if (!enderecoBusca) {
+      alert("Por favor, preencha o campo de Endereço ou Cidade antes de buscar.");
+      return;
+    }
+
+    setIsSearching(true);
+    setProviderResults(null);
+
+    try {
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST', 
+        body: JSON.stringify({
+          action: 'buscar_prestadores',
+          endereco: enderecoBusca,
+          tipo_servico: tipoServico,
+          token_acesso: API_TOKEN // Envia token na busca também por segurança
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'sucesso') {
+        setProviderResults(data.resultados);
+      } else {
+        alert("Erro na busca: " + data.msg);
+      }
+
+    } catch (error) {
+      console.error("Erro ao buscar prestadores:", error);
+      alert("Erro de conexão ao buscar prestadores.");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSelectProvider = (prestador: PrestadorResultado) => {
+    setFormData(prev => ({
+      ...prev,
+      prestador: prestador.nome, // Certifique-se que o ID no constants.ts é 'prestador'
+      telefone_prestador: prestador.telefone || '', // Certifique-se que o ID é 'telefone_prestador'
+    }));
+    setProviderResults(null);
+  };
+  // ------------------------
+
   const renderHome = () => (
     <div className="space-y-12 animate-in fade-in duration-1000">
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 pb-4">
+      {/* ... (renderHome permanece igual) ... */}
+       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 pb-4">
         <div className="max-w-2xl">
           <div className="flex items-center space-x-3 text-cyan-500 font-black text-xs uppercase tracking-[0.3em] mb-4">
              <span className="w-12 h-[3px] bg-cyan-500 rounded-full"></span>
@@ -251,23 +309,35 @@ const Dashboard: React.FC = () => {
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
               <div className="xl:col-span-7 2xl:col-span-8">
                 <FormCard title={activeTemplate ? activeTemplate.title : currentSub?.name || ''} icon={isTerm ? 'fa-file-signature' : 'fa-pen-to-square'}>
-                   <form onSubmit={(e) => e.preventDefault()} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    {/* --- 2. ADICIONADO AQUI: BUSCA DE PRESTADORES --- */}
+                    {activeSubmodule === 'abertura_assistencia' && (
+                      <ProviderSearch 
+                        onSearch={handleSearchProviders}
+                        isSearching={isSearching}
+                        results={providerResults}
+                        onSelect={handleSelectProvider}
+                      />
+                    )}
+                    {/* ----------------------------------------------- */}
+
+                    <form onSubmit={(e) => e.preventDefault()} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {(activeTemplate ? activeTemplate.fields : (currentSub?.fields || [])).map(field => renderField(field))}
                     
                     <div className="md:col-span-2 flex justify-end gap-4 flex-wrap">
                       
                       {isFormularioIntegrado && (
-                         <button
-                           type="button"
-                           onClick={handleRegister}
-                           disabled={status.submitting}
-                           className="group flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all duration-300 bg-emerald-500 text-white hover:bg-emerald-400 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                         >
-                           <span>{status.submitting ? 'Enviando...' : 'Registrar no Sistema'}</span>
-                           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center transition-colors">
-                             <i className="fa-solid fa-check text-sm"></i>
-                           </div>
-                         </button>
+                          <button
+                            type="button"
+                            onClick={handleRegister}
+                            disabled={status.submitting}
+                            className="group flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all duration-300 bg-emerald-500 text-white hover:bg-emerald-400 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <span>{status.submitting ? 'Enviando...' : 'Registrar no Sistema'}</span>
+                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center transition-colors">
+                              <i className="fa-solid fa-check text-sm"></i>
+                            </div>
+                          </button>
                       )}
 
                       <button 
@@ -276,8 +346,8 @@ const Dashboard: React.FC = () => {
                         className="w-60 group flex items-center justify-between px-6 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all duration-300 bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-600 border border-transparent hover:border-red-100"
                       >
                         <span className="flex-1 text-left">
-                           <span className="group-hover:hidden">Limpar Campos</span>
-                           <span className="hidden group-hover:inline">Apagar Tudo</span>
+                            <span className="group-hover:hidden">Limpar Campos</span>
+                            <span className="hidden group-hover:inline">Apagar Tudo</span>
                         </span>
                         <div className="w-8 h-8 rounded-full bg-white group-hover:bg-red-100 flex items-center justify-center transition-colors shadow-sm ml-2">
                           <i className="fa-solid fa-eraser text-sm transition-transform group-hover:rotate-12"></i>

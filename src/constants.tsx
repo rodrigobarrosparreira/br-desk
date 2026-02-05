@@ -1103,6 +1103,7 @@ Central de Agendamento\n
             { value: 'desinstalacao', label: 'Desinstalação'},
             { value: 'manutencao', label: 'Manutenção'}
           ]},
+          { id: 'local_instalado', label: 'Local Instalado', showIf: {field: 'tipo_protocolo', value: 'desinstalacao'}},
           //{ id: 'protocolo', label: 'Protocolo'},
           { id: 'nome', label: 'Nome Completo'},
           { id: 'cpf_cnpj', label: 'CPF/CNPJ'},
@@ -1136,41 +1137,41 @@ Central de Agendamento\n
           const tipoFormatado = tipos[data.tipo_protocolo] || 'SERVIÇO';
           return `*PROTOCOLO DE AGENDAMENTO PARA ${tipoFormatado} DE RASTREADOR*
 
-*Protocolo:* ${data.protocolo}
+*Protocolo:* ${data.protocolo || ''}
 
-*Nome completo:* ${data.nome}
+*Nome completo:* ${data.nome || ''}
 
-*CPF/CNPJ:* ${data.cpf_cnpj}
+*CPF/CNPJ:* ${data.cpf_cnpj || ''}
 
-*Data de nascimento:* ${dtNasc}
+*Data de nascimento:* ${dtNasc || ''}
 
-*E-mail:* ${data.email}
+*E-mail:* ${data.email || ''}
 
-*Telefone:* ${data.telefone}
+*Telefone:* ${data.telefone || ''}
 
-*Gênero:* ${data.genero}
+*Gênero:* ${data.genero || ''}
 
-*Placa:* ${data.placa}
+*Placa:* ${data.placa || ''}
 
-*Modelo:* ${data.veiculo}
+*Modelo:* ${data.veiculo || ''}
 
-*Cor:* ${data.cor}
+*Cor:* ${data.cor || ''}
 
-*Ano:* ${data.ano}
+*Ano:* ${data.ano || ''}
 
-*Renavam:* ${data.renavam}
+*Renavam:* ${data.renavam || ''}
 
-*Chassi:* ${data.chassi}
+*Chassi:* ${data.chassi || ''}
 
-*N.º do EMEI:* ${data.imei}
+*N.º do EMEI:* ${data.imei || ''}
 
-*Plataforma:* ${data.plataforma}
+*Plataforma:* ${data.plataforma || ''}
 
-*Endereço:* ${data.endereco}
+*Endereço:* ${data.endereco || ''}
 
-*Data:* ${dt_hr}
+*Data:* ${dt_hr || ''}
 
-*Técnico:* ${data.tecnico}
+*Técnico:* ${data.tecnico || ''}
           `
         }
       },

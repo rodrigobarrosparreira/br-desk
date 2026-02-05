@@ -10,6 +10,10 @@ export interface TemplateField {
   subFields?: TemplateField[]; // Usado se o tipo for 'repeater'
   addButtonLabel?: string; // Usado se o tipo for 'repeater'
   required?: boolean;
+  showIf?: {
+    field: string;
+    value: string;
+  }
 }
 
 export interface Submodule {
