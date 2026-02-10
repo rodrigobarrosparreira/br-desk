@@ -8,7 +8,8 @@ import { Input, Select, TextArea, FormCard, SuccessMessage, FormMirror, Repeater
 import { checkPermission } from '../utils/permissions';
 import { formatDateTime } from '../utils/Formatters';
 
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2K5KU6wJOWXfP9DYlXULgx8-LGn_uw9JgSnQ6vQ5wEzXcaVTxFxjoH_bmtKQdErT87g/exec";
+const MAPS_API_KEY = "AIzaSyA0rzO01A48M_HN1G6tr1hnZdB-QYtaZkg";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9xgHM0ZeRvfyueIGOQw-Eq1qToIiQmN258wk4vjgyePXzl-GyGQsDizYhMHyYrSK1Jg/exec";
 const API_TOKEN = "brclube-2026"; 
 
 const Dashboard: React.FC = () => {
@@ -27,6 +28,7 @@ const Dashboard: React.FC = () => {
   // States da Busca
   const [isSearching, setIsSearching] = useState(false);
   const [providerResults, setProviderResults] = useState<PrestadorResultado[] | null>(null);
+  const [searchRadius, setSearchRadius] = useState(10);
 
   const handleNavigate = (deptId: DepartmentId, submoduleId: string | null) => {
     setActiveDept(deptId);
@@ -144,11 +146,11 @@ const Dashboard: React.FC = () => {
 
   // --- FUNÇÕES DE BUSCA ---
   const handleSearchProviders = async () => {
-    const enderecoBusca = formData['endereco'] || formData['local_ocorrencia'] || formData['cidade_origem'];
-    const tipoServico = formData['tipo_servico'];
+    const enderecoBusca = formData['endereco-origem']; // Usando o novo campo
+    const tipoServico = formData['servico']; 
 
     if (!enderecoBusca) {
-      alert("Por favor, preencha o campo de Endereço ou Cidade antes de buscar.");
+      alert("Por favor, preencha o Endereço de Origem antes de buscar.");
       return;
     }
 
@@ -162,7 +164,8 @@ const Dashboard: React.FC = () => {
           action: 'buscar_prestadores',
           endereco: enderecoBusca,
           tipo_servico: tipoServico,
-          token_acesso: API_TOKEN // Envia token na busca também por segurança
+          raio: searchRadius, // 2. ENVIANDO O RAIO NO FETCH
+          token_acesso: API_TOKEN 
         })
       });
 
@@ -317,6 +320,11 @@ const Dashboard: React.FC = () => {
                         isSearching={isSearching}
                         results={providerResults}
                         onSelect={handleSelectProvider}
+                        radius={searchRadius}
+                        onRadiusChange={setSearchRadius}
+                        apiKey={MAPS_API_KEY}
+                        scriptUrl={GOOGLE_SCRIPT_URL}
+                        customerAddress={formData['endereco-origem'] || 'Brasil'}
                       />
                     )}
                     {/* ----------------------------------------------- */}

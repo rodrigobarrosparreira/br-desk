@@ -92,7 +92,9 @@ export const DEPARTMENTS: Department[] = [
             ] },
             { id: 'obs-gerador', label: 'Observações do Fator Gerador', type: 'textarea' },
             { id: 'chave-documento', label: 'Chave e Documento estão no local?', type: 'select', options: [{ value: 'sim', label: 'Sim' }, { value: 'nao', label: 'Não' }] },
+            { id: 'obs_chave_documento', label: 'Observações sobre chave e documento'},
             { id: 'facil-acesso', label: 'Veículo de fácil acesso?', type: 'select', options: [{ value: 'sim', label: 'Sim' }, { value: 'nao', label: 'Não' }] },
+            { id: 'obs_facil_acesso', label: 'Observações sobre acesso ao veículo'},
             { id: 'servico', label: 'Serviço' },
             { id: 'endereco-origem', label: 'Endereço de Origem' },
             { id: 'referencia-origem', label: 'Referência de Origem' },
@@ -110,47 +112,56 @@ export const DEPARTMENTS: Department[] = [
         parentId: 'assistance',
         fields: [
             { id: 'protocolo', label: 'Protocolo' },
-            { id: 'associado', label: 'Associado'},
-            { id: 'placa', label: 'Placa' },
             { id: 'data-hora', label: 'Data e Hora', type: 'datetime-local' },
+            { id: 'placa', label: 'Placa' },
+            { id: 'modelo', label: 'Modelo' },
+            { id: 'cor', label: 'Cor' },
             { id: 'solicitante', label: 'Solicitante' },
-            { id: 'causa', label: 'Causa / Fator Gerador', type: 'select', options: [
-              { value: 'pane_eletrica', label: 'Pane Elétrica'},
-              { value: 'pane_seca', label: 'Pane Seca'},
-              { value: 'colisao', label: 'Colisão'},
-              { value: 'pane_mecanica', label: 'Pane Mecânica'},
-              { value: 'bateria', label: 'Bateria (descarregada)'},
-              { value: 'pneu', label: 'Pneu Furado'},
-              { value: 'pane_eletrica_bateria', label: 'Pane Elétrica (bateria)'},
-              { value: 'nao_liga', label: 'Carro Não Liga'},
-              { value: 'marcha_travou', label: 'A Marcha Travou'},
-              { value: 'remoção_oficina', label: 'Remoção de Oficina'},
-              { value: 'chave_trancada', label: 'Carro Trancado com a Chave Dentro'},
-              { value: 'nao_liga2', label: 'O Carro Não Liga, Tem Ignição, Mas Não Dá Partida'},
-              { value: 'superaquecimento', label: 'Super Aquecimento'},
-              { value: 'pane', label: 'Pane Genérica'}
-            ]},
-            { id: 'cidade_origem', label: 'Cidade de Origem'},
-            { id: 'cidade_destino', label: 'Cidade de Destino'},
-            { id: 'km_atendimento', label: 'KM no Atendimento'},
-            { id: 'km_total', label: 'KM Total'},
-            { id: 'tipo_servico', label: 'Tipo de Serviço', type: 'select', options:[
-              {value: 'guincho', label: 'Guincho' },
-              {value: 'carga_bateria', label: 'Carga de Bateria' },
-              {value: 'troca_pneu', label: 'Troca de Pneu' },
-              {value: 'chaveiro', label: 'Chaveiro' },
-              {value: 'brpower', label: 'BR Power' },
-              {value: 'aux_deslocamento', label: 'Auxílio Deslocamento' },
-              {value: 'aux_hospedagem', label: 'Auxílio Hospedagem'}
-            ] },
-            { id: 'hora_solicitação', label: 'Hora da Solicitação'},
             { id: 'telefone', label: 'Telefone', type: 'tel', placeholder: '(00) 00000-0000' },
+            { id: 'fator-gerador', label: 'Fator Gerador', type: 'select', options:[
+              {value: 'pane-eletrica', label: 'Pane Elétrica' },
+              {value: 'pane-mecanica', label: 'Pane Mecânica' },
+              {value: 'pane-seca', label: 'Pane Seca' },
+              {value: 'chave', label: 'Chave' },
+              {value: 'pneu', label: 'Pneu furado' },
+              {value: 'colisao', label: 'Colisão' }
+            ] },
             { id: 'obs-gerador', label: 'Observações do Fator Gerador', type: 'textarea' },
-            { id: 'chave-documento', label: 'Chave e Documento estão no local?', type: 'select', options: [{ value: 'Sim', label: 'Sim' }, { value: 'Não', label: 'Não' }] },
-            { id: 'facil-acesso', label: 'Veículo de fácil acesso?', type: 'select', options: [{ value: 'Sim', label: 'Sim' }, { value: 'Não', label: 'Não' }] },
+            { id: 'chave-documento', label: 'Chave e Documento estão no local?', type: 'select', options: [{ value: 'sim', label: 'Sim' }, { value: 'nao', label: 'Não' }] },
+            { id: 'obs_chave_documento', label: 'Observações sobre chave e documento'},
+            { id: 'facil-acesso', label: 'Veículo de fácil acesso?', type: 'select', options: [{ value: 'sim', label: 'Sim' }, { value: 'nao', label: 'Não' }] },
+            { id: 'obs_facil_acesso', label: 'Observações sobre acesso ao veículo'},
+            { id: 'servico', label: 'Serviço' },
+            { id: 'endereco-origem', label: 'Endereço de Origem' },
+            { id: 'referencia-origem', label: 'Referência de Origem' },
+            { id: 'endereco-destino', label: 'Endereço de Destino' },
+            { id: 'referencia-destino', label: 'Referência de Destino' },
+            { id: 'quilometragem', label: 'Quilometragem' },
+            { id: 'quilometragem-total', label: 'Quilometragem Total' }
         ],
         messageTemplate: 
-        `🚨 *BR CLUBE - NOVO ACIONAMENTO* 🚨\n\n*Protocolo:* {{protocolo}}\n*Associado:* {{associado}}\n*Data/Horário:* {{data-hora}}\n*Hora Solicitação:* {{hora_solicitação}}\n*Placa:* {{placa}}\n*Solicitante:* {{solicitante}}\n*Telefone:* {{telefone}}\n*Fator Gerador:* {{causa}}\n*Observações:* {{obs-gerador}}\n*Chave/Doc no local?:* {{chave-documento}}\n*Fácil acesso?:* {{facil-acesso}}\n*Serviço:* {{tipo_servico}}\n*Origem:* {{cidade_origem}}\n*Destino:* {{cidade_destino}}\n*KM Atendimento:* {{km_atendimento}}\n*KM Total:* {{km_total}}`
+`🚨 *BR CLUBE - NOVO ACIONAMENTO* 🚨\n\n
+*Protocolo:* {{protocolo}}\n
+*Data:* {{data-hora}}\n
+*Placa:* {{placa}}\n
+*Modelo:* {{modelo}}\n
+*Cor:* {{cor}}\n
+*Solicitante:* {{solicitante}}\n
+*Telefone:* {{telefone}}\n
+*Fator Gerador:* {{fator-gerador}}\n
+*Observações:* {{obs-gerador}}\n
+*Chave/Doc no local?:* {{chave-documento}}\n
+*Observação do fator gerador:* {{obs_chave_documento}}\n
+*Fácil acesso?:* {{facil-acesso}}\n
+*Observações sobre o acesso: {{obs_facil_acesso}}*
+*Serviço:* {{servico}}\n
+*Endereço de Origem:* {{endereco-origem}}\n
+*Referência do endereço de origem:* {{referencia-origem}}\n
+*Endereço de Destino:* {{endereco-destino}}\n
+*Referência do endereço de destino:* {{referencia-destino}}\n
+*Quilometragem (km):* {{quilometragem}} km\n
+*Quilometragem total (km):* {{quilometragem-total}} km\n
+`
     },
     {
       id: 'fechamento_assistencia',

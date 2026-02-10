@@ -2,6 +2,166 @@ import React, { useState, useEffect, memo } from 'react';
 import { PDFDownloadLink, pdf, PDFViewer } from '@react-pdf/renderer';
 import { TermoAcordoPDF, CobrancaPDF, TermoCancelamentoPDF, EntregaVeiculoPDF, TermoAcordoAmparoPDF, TermoRecebimentoRastreadorPDF, RecebimentoPecasPDF, ReciboPrestadorPDF, ReciboPagamentoEstagioPDF, ReciboPagamentoTransportePDF, ReciboChequePDF, TermoIndenizacaoPecuniaria, TermoQuitacaoEventoPDF } from '../PDFTemplates';
 
+interface ProviderSearchProps {
+  onSearch: () => void;
+  isSearching: boolean;
+  results: PrestadorResultado[] | null;
+  onSelect: (prestador: PrestadorResultado) => void;
+  radius: number;
+  onRadiusChange: (v: number) => void;
+  apiKey: string;
+  customerAddress: string;
+  scriptUrl: string; // <--- ADICIONE ESTA LINHA
+}
+
+interface MapModalProps {
+  placeId?: string;
+  providerAddress: string;
+  customerAddress: string;
+  apiKey: string;
+  scriptUrl: string; // <--- PRECISAMOS DA URL DO SCRIPT AGORA
+  onClose: () => void;
+}
+
+const MapModal: React.FC<MapModalProps> = ({ placeId, providerAddress, customerAddress, apiKey, scriptUrl, onClose }) => {
+  const [mode, setMode] = useState<'details' | 'directions'>('details');
+  const [info, setInfo] = useState<any>(null); // Estado para guardar os detalhes (telefone, etc)
+  const [loadingInfo, setLoadingInfo] = useState(false);
+
+  // Efeito para buscar os detalhes assim que o modal abre (se tiver ID)
+  useEffect(() => {
+    if (placeId && mode === 'details') {
+      setLoadingInfo(true);
+      fetch(scriptUrl, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'buscar_detalhes_place', place_id: placeId })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'sucesso') setInfo(data.detalhes);
+      })
+      .catch(err => console.error("Erro detalhes", err))
+      .finally(() => setLoadingInfo(false));
+    }
+  }, [placeId, mode]);
+
+  // URLs do Maps (Iguais ao anterior)
+  const detailsQuery = placeId ? `place_id:${placeId}` : providerAddress;
+  const srcDetails = `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodeURIComponent(detailsQuery)}`;
+  const originQuery = placeId ? `place_id:${placeId}` : providerAddress;
+  const srcDirections = `https://www.google.com/maps/embed/v1/directions?key=${apiKey}&origin=${encodeURIComponent(originQuery)}&destination=${encodeURIComponent(customerAddress)}&mode=driving`;
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/90 backdrop-blur-sm animate-in fade-in p-4">
+      <div className="bg-white w-full max-w-6xl h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95">
+        
+        {/* COLUNA DA ESQUERDA: INFORMAÇÕES RICAS (Só aparece no modo Detalhes) */}
+        {mode === 'details' && (
+          <div className="w-full md:w-1/3 bg-slate-50 border-r border-slate-200 flex flex-col overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-xl font-black text-slate-800 leading-tight mb-2">{info?.nome || "Carregando..."}</h2>
+              <p className="text-sm text-slate-500 mb-4">{info?.endereco || providerAddress}</p>
+
+              {loadingInfo ? (
+                <div className="flex items-center gap-2 text-cyan-600 font-bold text-sm animate-pulse">
+                  <i className="fa-solid fa-circle-notch fa-spin"></i> Buscando telefone e fotos...
+                </div>
+              ) : info ? (
+                <div className="space-y-4">
+                  {/* FOTO */}
+                  {info.foto && (
+                    <div className="w-full h-48 rounded-xl overflow-hidden shadow-sm bg-slate-200">
+                      <img src={info.foto} alt="Local" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+
+                  {/* TELEFONE (GRANDE DESTAQUE) */}
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Telefone / Contato</label>
+                    {info.telefone !== "Não informado" ? (
+                      <a href={`tel:${info.telefone}`} className="text-2xl font-black text-green-600 hover:underline flex items-center gap-2">
+                        <i className="fa-brands fa-whatsapp"></i> {info.telefone}
+                      </a>
+                    ) : (
+                      <span className="text-slate-400 font-medium">Não disponível</span>
+                    )}
+                  </div>
+
+                  {/* STATUS E AVALIAÇÃO */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white p-3 rounded-xl border border-slate-200">
+                       <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Situação</label>
+                       {info.aberto_agora === true && <span className="text-green-600 font-bold text-sm">✅ Aberto Agora</span>}
+                       {info.aberto_agora === false && <span className="text-red-500 font-bold text-sm">❌ Fechado</span>}
+                       {info.aberto_agora === null && <span className="text-slate-500 text-sm">-</span>}
+                    </div>
+                    <div className="bg-white p-3 rounded-xl border border-slate-200">
+                       <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Avaliação</label>
+                       <div className="text-amber-500 font-black text-sm flex items-center gap-1">
+                         <span className="text-lg">{info.rating || "-"}</span> 
+                         <i className="fa-solid fa-star text-xs"></i>
+                         <span className="text-slate-400 text-[10px] font-normal">({info.total_reviews || 0})</span>
+                       </div>
+                    </div>
+                  </div>
+
+                  {/* LINK EXTERNO */}
+                  {info.site && (
+                    <a href={info.site} target="_blank" rel="noreferrer" className="block w-full text-center py-3 rounded-xl bg-cyan-50 text-cyan-700 font-bold text-xs hover:bg-cyan-100 transition-colors">
+                      Abrir no Google Maps App <i className="fa-solid fa-arrow-up-right-from-square ml-1"></i>
+                    </a>
+                  )}
+                </div>
+              ) : (
+                 // Fallback se não tiver place_id (resultado interno)
+                 <div className="p-4 bg-yellow-50 text-yellow-700 rounded-xl text-xs">
+                   Informações detalhadas indisponíveis para este parceiro interno. Verifique a planilha.
+                 </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* COLUNA DA DIREITA: MAPA */}
+        <div className="flex-1 flex flex-col bg-slate-100 h-full relative">
+           
+           {/* Barra de Controle Superior */}
+           <div className="bg-white p-3 border-b border-slate-200 flex justify-between items-center shadow-sm z-10">
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setMode('details')}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${mode === 'details' ? 'bg-cyan-600 text-white shadow' : 'text-slate-500 hover:bg-slate-100'}`}
+                >
+                  <i className="fa-solid fa-store mr-2"></i> Ficha
+                </button>
+                <button 
+                  onClick={() => setMode('directions')}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${mode === 'directions' ? 'bg-cyan-600 text-white shadow' : 'text-slate-500 hover:bg-slate-100'}`}
+                >
+                  <i className="fa-solid fa-route mr-2"></i> Rota até Cliente
+                </button>
+              </div>
+              <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors flex items-center justify-center">
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+           </div>
+
+           {/* IFRAME */}
+           <iframe
+             className="w-full h-full flex-1"
+             style={{ border: 0 }}
+             loading="lazy"
+             allowFullScreen
+             src={mode === 'details' ? srcDetails : srcDirections}
+           ></iframe>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+
 // --- 1. FUNÇÃO AUXILIAR PARA ESCOLHER O TEMPLATE ---
 const getPdfComponent = (type: string | undefined, data: any) => {
   switch (type) {
@@ -120,75 +280,107 @@ export interface PrestadorResultado {
   place_id?: string;
 }
 
-interface ProviderSearchProps {
-  onSearch: () => void;
-  isSearching: boolean;
-  results: PrestadorResultado[] | null;
-  onSelect: (prestador: PrestadorResultado) => void;
-}
 
-export const ProviderSearch: React.FC<ProviderSearchProps> = ({ onSearch, isSearching, results, onSelect }) => {
+export const ProviderSearch: React.FC<ProviderSearchProps> = ({ 
+  onSearch, 
+  isSearching, 
+  results, 
+  onSelect, 
+  radius, 
+  onRadiusChange, 
+  apiKey, 
+  customerAddress,
+  scriptUrl // <--- ADICIONE ESTA LINHA AQUI TAMBÉM
+}) => {
+  const [viewingPlace, setViewingPlace] = useState<PrestadorResultado | null>(null);
+
   return (
-    <div className="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-2xl animate-in fade-in slide-in-from-top-4">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h4 className="font-black text-slate-700 uppercase tracking-widest text-xs">Busca Inteligente</h4>
-          <p className="text-xs text-slate-500">Encontre parceiros ou prestadores próximos ao local.</p>
-        </div>
-        <button 
-          type="button"
-          onClick={onSearch}
-          disabled={isSearching}
-          className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all shadow-md hover:shadow-lg disabled:opacity-50"
-        >
-          {isSearching ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-magnifying-glass-location"></i>}
-          {isSearching ? 'Buscando...' : 'Buscar Prestadores'}
-        </button>
-      </div>
-
-      {results && (
-        <div className="space-y-2 mt-4 max-h-80 overflow-y-auto custom-scrollbar pr-2">
-          {results.length === 0 ? (
-            <div className="text-center text-slate-400 text-xs py-4 italic">Nenhum prestador encontrado nesta região.</div>
-          ) : (
-            results.map((p, idx) => (
-              <div key={idx} className={`p-3 rounded-xl border flex items-center justify-between transition-all hover:shadow-md ${p.origem === 'interno' ? 'bg-green-50/50 border-green-200 hover:border-green-300' : 'bg-white border-slate-100 hover:border-cyan-200'}`}>
-                
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-bold text-sm text-slate-700">{p.nome}</span>
-                    {p.origem === 'interno' && (
-                      <span className="bg-green-100 text-green-700 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border border-green-200">Parceiro</span>
-                    )}
-                    {p.rating && p.rating !== '-' && (
-                      <span className="text-amber-500 text-[10px] font-bold flex items-center bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
-                        <i className="fa-solid fa-star mr-1 text-[9px]"></i>{p.rating}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-slate-500 flex items-center gap-2">
-                    <i className="fa-solid fa-location-dot opacity-50"></i> {p.endereco}
-                  </div>
-                  {p.telefone && (
-                     <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
-                       <i className="fa-solid fa-phone opacity-50"></i> {p.telefone}
-                     </div>
-                  )}
-                </div>
-
-                <button 
-                  type="button"
-                  onClick={() => onSelect(p)}
-                  className="ml-4 text-cyan-600 hover:bg-cyan-50 px-3 py-2 rounded-lg text-xs font-bold transition-colors"
-                >
-                  Selecionar
-                </button>
-              </div>
-            ))
-          )}
-        </div>
+    <>
+      {viewingPlace && (
+        <MapModal 
+          apiKey={apiKey}
+          placeId={viewingPlace.place_id}
+          providerAddress={viewingPlace.endereco}
+          customerAddress={customerAddress}
+          scriptUrl={scriptUrl} // Agora essa variável existe e o erro vai sumir!
+          onClose={() => setViewingPlace(null)}
+        />
       )}
-    </div>
+
+      <div className="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-2xl animate-in fade-in slide-in-from-top-4">
+        {/* ... (O resto do layout de busca e inputs de raio continua igual) ... */}
+        
+        <div className="flex flex-col sm:flex-row items-end sm:items-center justify-between gap-4 mb-4">
+            <div>
+              <h4 className="font-black text-slate-700 uppercase tracking-widest text-xs">Busca Inteligente</h4>
+              <p className="text-xs text-slate-500">Encontre parceiros ou prestadores próximos.</p>
+            </div>
+            
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+               <div className="flex flex-col items-end">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Raio (KM)</label>
+                  <input 
+                    type="number" min="1" max="100" value={radius}
+                    onChange={(e) => onRadiusChange(Number(e.target.value))}
+                    className="w-16 px-2 py-2 border border-slate-200 rounded-xl text-center text-sm font-bold text-slate-700 focus:border-cyan-500 outline-none"
+                  />
+               </div>
+               <button 
+                 type="button" onClick={onSearch} disabled={isSearching}
+                 className="h-[42px] bg-cyan-600 hover:bg-cyan-500 text-white px-4 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all shadow-md hover:shadow-lg disabled:opacity-50 mt-auto"
+               >
+                 {isSearching ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-magnifying-glass-location"></i>}
+                 {isSearching ? 'Buscando...' : 'Buscar'}
+               </button>
+            </div>
+        </div>
+
+        {results && (
+          <div className="space-y-2 mt-4 max-h-80 overflow-y-auto custom-scrollbar pr-2">
+            {results.length === 0 ? (
+              <div className="text-center text-slate-400 text-xs py-4 italic">Nenhum prestador encontrado nesta região.</div>
+            ) : (
+              results.map((p, idx) => (
+                <div key={idx} className={`p-3 rounded-xl border flex items-center justify-between transition-all hover:shadow-md ${p.origem === 'interno' ? 'bg-green-50/50 border-green-200 hover:border-green-300' : 'bg-white border-slate-100 hover:border-cyan-200'}`}>
+                  
+                  <div className="flex-1 min-w-0 pr-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-bold text-sm text-slate-700 truncate">{p.nome}</span>
+                      {p.origem === 'interno' && <span className="bg-green-100 text-green-700 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border border-green-200">Parceiro</span>}
+                      {p.rating && p.rating !== '-' && (
+                         <span className="text-amber-500 text-[10px] font-bold flex items-center bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100"><i className="fa-solid fa-star mr-1 text-[9px]"></i>{p.rating}</span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-slate-500 flex items-center gap-2 truncate">
+                      <i className="fa-solid fa-location-dot opacity-50"></i> {p.endereco}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button 
+                      type="button"
+                      onClick={() => setViewingPlace(p)}
+                      className="w-8 h-8 rounded-lg border border-slate-200 text-slate-400 hover:text-cyan-600 hover:border-cyan-200 hover:bg-cyan-50 flex items-center justify-center transition-all"
+                      title="Ver Detalhes e Rota"
+                    >
+                      <i className="fa-solid fa-map-location-dot"></i>
+                    </button>
+
+                    <button 
+                      type="button"
+                      onClick={() => onSelect(p)}
+                      className="text-cyan-600 hover:bg-cyan-50 px-3 py-2 rounded-lg text-xs font-bold transition-colors"
+                    >
+                      Selecionar
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 
