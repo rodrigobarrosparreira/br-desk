@@ -5,13 +5,13 @@ import { DepartmentId, FormSubmissionStatus, Submodule, Template } from '../../t
 import { DEPARTMENTS } from '../constants';
 import { 
   Input, Select, TextArea, FormCard, SuccessMessage, FormMirror, 
-  RepeaterField, ProviderSearch, PrestadorResultado, TicketList, Ticket // <--- Certifique-se de importar TicketList e Ticket
+  RepeaterField, ProviderSearch, PrestadorResultado, TicketList, Ticket 
 } from '../components/FormComponents';
 import { checkPermission } from '../utils/permissions';
 import { formatDateTime } from '../utils/Formatters';
 
 const MAPS_API_KEY = "AIzaSyA0rzO01A48M_HN1G6tr1hnZdB-QYtaZkg";
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9xgHM0ZeRvfyueIGOQw-Eq1qToIiQmN258wk4vjgyePXzl-GyGQsDizYhMHyYrSK1Jg/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyd0QBXX9SBbdkTRIR-0MmB2FSw125nPigojxUk5nvIp-nor_z2jyP6mA43US_k4hj8_g/exec";
 const API_TOKEN = "brclube-2026"; 
 
 const Dashboard: React.FC = () => {
@@ -20,7 +20,7 @@ const Dashboard: React.FC = () => {
   // --- ESTADOS DO CRM (ATENDIMENTOS) ---
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoadingTickets, setIsLoadingTickets] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // Estado de loading geral (edição)
+  const [isLoading, setIsLoading] = useState(false);
   // -------------------------------------
 
   const visibleDepartments = DEPARTMENTS.filter(dept => 
@@ -42,12 +42,12 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     if (profile?.email) {
       loadTickets();
-      // Opcional: Atualizar a cada 60s
       const interval = setInterval(loadTickets, 60000);
       return () => clearInterval(interval);
     }
-  }, [profile]); // Recarrega se o perfil mudar (login)
+  }, [profile]);
 
+  // --- FUNÇÃO DE CARREGAR TICKETS (BLINDADA) ---
   const loadTickets = async () => {
     setIsLoadingTickets(true);
     try {
@@ -55,16 +55,26 @@ const Dashboard: React.FC = () => {
         method: 'POST',
         body: JSON.stringify({ 
           action: 'listar_atendimentos', 
-          atendente: profile?.email, // Filtra pelo email do usuário logado
+          atendente: profile?.email,
           token_acesso: API_TOKEN
         })
       });
-      const data = await response.json();
-      if (data.status === 'sucesso') {
-        setTickets(data.lista);
+
+      // TENTA LER COMO TEXTO PRIMEIRO PARA EVITAR O ERRO JSON
+      const text = await response.text();
+      try {
+        // Tenta limpar o JSON caso venha sujo
+        const cleanText = text.match(/\{[\s\S]*\}/)?.[0] || text;
+        const data = JSON.parse(cleanText);
+        
+        if (data.status === 'sucesso') {
+          setTickets(data.lista);
+        }
+      } catch (e) {
+        console.warn("Resposta não-JSON ao carregar tickets (pode ser normal se backend estiver dormindo):", text);
       }
     } catch (error) {
-      console.error("Erro ao carregar tickets", error);
+      console.error("Erro de conexão tickets", error);
     } finally {
       setIsLoadingTickets(false);
     }
@@ -81,27 +91,26 @@ const Dashboard: React.FC = () => {
           token_acesso: API_TOKEN
         })
       });
-      const data = await response.json();
+      
+      const text = await response.text();
+      const cleanText = text.match(/\{[\s\S]*\}/)?.[0] || text;
+      const data = JSON.parse(cleanText);
       
       if (data.status === 'sucesso') {
-        // Navega para a tela de Abertura se não estiver nela
-        // (Ajuste conforme sua lógica: talvez você queira abrir o formulário correto baseado no tipo)
         if (activeSubmodule !== 'abertura_assistencia') {
             handleNavigate('assistencia', 'abertura_assistencia'); 
         }
-        
-        setFormData(data.dados); // Preenche o formulário
+        setFormData(data.dados);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         alert("Erro ao carregar: " + data.msg);
       }
     } catch (error) {
-      alert("Erro de conexão.");
+      alert("Erro de conexão ao carregar detalhes.");
     } finally {
       setIsLoading(false);
     }
   };
-  // -------------------------------------------
 
   const handleNavigate = (deptId: DepartmentId, submoduleId: string | null) => {
     setActiveDept(deptId);
@@ -111,8 +120,6 @@ const Dashboard: React.FC = () => {
     setFormData({});
     setProviderResults(null); 
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    
-    // Recarrega a lista sempre que mudar de tela para garantir dados frescos
     if (profile?.email) loadTickets();
   };
 
@@ -144,7 +151,7 @@ const Dashboard: React.FC = () => {
       ...formData,
       form_id: activeSubmodule,
       user_email: profile?.email,
-      atendente: profile?.full_name || profile?.email, // Envia o NOME para ficar bonito na planilha (Coluna Y)
+      atendente: profile?.full_name || profile?.email,
       token_acesso: API_TOKEN
     };
 
@@ -158,7 +165,7 @@ const Dashboard: React.FC = () => {
 
       alert("Dados salvos com sucesso!");
       setStatus({ submitting: false, success: true, error: null });
-      loadTickets(); // Atualiza a lista lateral imediatamente
+      loadTickets();
 
     } catch (error) {
       console.error("Erro:", error);
@@ -222,14 +229,14 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // --- FUNÇÕES DE BUSCA ---
+  // --- FUNÇÃO DE BUSCA BLINDADA (FUNCIONA COM INPUT DO WIDGET OU DO FORM) ---
   const handleSearchProviders = async (addressFromWidget?: string, serviceTypeFromWidget?: string) => {
-    // Lógica atualizada para aceitar input do Widget
+    // Tenta pegar do widget primeiro (se vier), senão pega do formulário
     const enderecoBusca = addressFromWidget || formData['endereco-origem']; 
     const tipoServico = serviceTypeFromWidget || formData['servico'];
 
     if (!enderecoBusca) {
-      alert("Por favor, digite um endereço para buscar.");
+      alert("Por favor, digite um endereço para buscar (no formulário ou na caixa de busca).");
       return;
     }
 
@@ -248,16 +255,28 @@ const Dashboard: React.FC = () => {
         })
       });
 
-      const data = await response.json();
+      // --- PROTEÇÃO CONTRA CRASH JSON ---
+      const text = await response.text();
+      let data;
+      try {
+         const cleanText = text.match(/\{[\s\S]*\}/)?.[0] || text;
+         data = JSON.parse(cleanText);
+      } catch (e) {
+         console.error("Erro JSON bruto:", text);
+         alert("O servidor respondeu com erro. Verifique se o Google Apps Script foi implantado como 'Nova Versão'.");
+         setIsSearching(false);
+         return;
+      }
+      // ----------------------------------
 
       if (data.status === 'sucesso') {
         setProviderResults(data.resultados);
       } else {
-        alert("Erro na busca: " + data.msg);
+        alert("Erro na busca: " + (data.msg || "Desconhecido"));
       }
 
     } catch (error) {
-      console.error("Erro ao buscar prestadores:", error);
+      console.error("Erro de rede:", error);
       alert("Erro de conexão ao buscar prestadores.");
     } finally {
       setIsSearching(false);
@@ -267,14 +286,11 @@ const Dashboard: React.FC = () => {
   const handleSelectProvider = (prestador: PrestadorResultado) => {
     setFormData(prev => ({
       ...prev,
-      prestador_nome: prestador.nome, // Atualizado para bater com o Backend (prestador_nome)
-      prestador: prestador.nome, // Mantendo compatibilidade antiga
+      prestador_nome: prestador.nome, 
+      prestador: prestador.nome, 
       telefone_prestador: prestador.telefone || '',
     }));
-    // Não limpa o resultado imediatamente para permitir ver os dados, se quiser
-    // setProviderResults(null); 
   };
-  // ------------------------
 
   const renderHome = () => (
     <div className="space-y-12 animate-in fade-in duration-1000">
@@ -327,7 +343,6 @@ const Dashboard: React.FC = () => {
       {activeDept === 'home' ? (
         renderHome()
       ) : !activeSubmodule ? (
-        // --- TELA DE SUBMÓDULOS (Botões grandes) ---
         <div className="space-y-8">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
@@ -364,7 +379,6 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       ) : (
-        // --- TELA DO FORMULÁRIO (Onde o CRM aparece) ---
         <div className="space-y-8 animate-in fade-in duration-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-5">
@@ -392,7 +406,7 @@ const Dashboard: React.FC = () => {
               onReset={() => setStatus({ ...status, success: null })} 
             />
           ) : (
-            // --- AQUI ESTÁ O LAYOUT DE 3 COLUNAS ---
+            // LAYOUT DE 3 COLUNAS
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
               
               {/* 1. LISTA DE ATENDIMENTOS (CRM) */}
@@ -453,7 +467,8 @@ const Dashboard: React.FC = () => {
                 
                 {activeSubmodule === 'abertura_assistencia' && (
                    <ProviderSearch 
-                      onSearch={handleSearchProviders} // Agora passa a função com os argumentos certos
+                      // Esta função agora aceita argumentos do widget OU usa o formData
+                      onSearch={(addr, type) => handleSearchProviders(addr, type)} 
                       isSearching={isSearching}
                       results={providerResults}
                       onSelect={handleSelectProvider}
