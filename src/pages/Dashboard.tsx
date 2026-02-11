@@ -11,7 +11,7 @@ import { checkPermission } from '../utils/permissions';
 import { formatDateTime } from '../utils/Formatters';
 
 const MAPS_API_KEY = "AIzaSyA0rzO01A48M_HN1G6tr1hnZdB-QYtaZkg";
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyd0QBXX9SBbdkTRIR-0MmB2FSw125nPigojxUk5nvIp-nor_z2jyP6mA43US_k4hj8_g/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzPqUPLLfvTq2RNxcPzP3k4qtUDFgVX0YUDggg2Rq_F3CkhAvSiGJkLqHmqmoqAfvokyQ/exec";
 const API_TOKEN = "brclube-2026"; 
 
 const Dashboard: React.FC = () => {
@@ -49,32 +49,49 @@ const Dashboard: React.FC = () => {
 
   // --- FUNÇÃO DE CARREGAR TICKETS (BLINDADA) ---
   const loadTickets = async () => {
+    // Se não tiver perfil, nem tenta
+    const identificador = profile?.full_name || profile?.email;
+    if (!identificador) return;
+
     setIsLoadingTickets(true);
+    console.log("🔍 DEBUG: Tentando carregar tickets para:", identificador);
+
     try {
+      // O SEGREDO ESTÁ AQUI: text/plain
       const response = await fetch(GOOGLE_SCRIPT_URL, {
+        redirect: "follow", 
         method: 'POST',
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8", 
+        },
         body: JSON.stringify({ 
           action: 'listar_atendimentos', 
-          atendente: profile?.email,
+          atendente: identificador,
           token_acesso: API_TOKEN
         })
       });
 
-      // TENTA LER COMO TEXTO PRIMEIRO PARA EVITAR O ERRO JSON
       const text = await response.text();
-      try {
-        // Tenta limpar o JSON caso venha sujo
-        const cleanText = text.match(/\{[\s\S]*\}/)?.[0] || text;
-        const data = JSON.parse(cleanText);
-        
-        if (data.status === 'sucesso') {
-          setTickets(data.lista);
-        }
-      } catch (e) {
-        console.warn("Resposta não-JSON ao carregar tickets (pode ser normal se backend estiver dormindo):", text);
+      // console.log("📩 DEBUG: Resposta crua:", text); // Descomente se quiser ver o que chega
+
+      // Tenta extrair JSON de dentro do texto (caso o Google mande HTML junto)
+      const jsonString = text.match(/\{[\s\S]*\}/)?.[0];
+      
+      if (jsonString) {
+          const data = JSON.parse(jsonString);
+          if (data.status === 'sucesso') {
+            console.log(`✅ Sucesso! Tickets carregados: ${data.lista.length}`);
+            setTickets(data.lista);
+          } else {
+            console.error("❌ Erro lógico do servidor:", data.msg);
+          }
+      } else {
+          // Se não achou JSON, provavelmente é erro HTML do Google
+          console.warn("⚠️ Resposta inválida do servidor (HTML de erro?):", text);
       }
+
     } catch (error) {
-      console.error("Erro de conexão tickets", error);
+      console.error("❌ Erro de conexão/rede:", error);
     } finally {
       setIsLoadingTickets(false);
     }
@@ -149,6 +166,9 @@ const Dashboard: React.FC = () => {
 
     const payload = {
       ...formData,
+      action: 'salvar_ou_atualizar',
+      status: 'ABERTO',
+      hora_solicitacao: new Date().toLocaleTimeString(),
       form_id: activeSubmodule,
       user_email: profile?.email,
       atendente: profile?.full_name || profile?.email,
@@ -157,9 +177,12 @@ const Dashboard: React.FC = () => {
 
     try {
       await fetch(GOOGLE_SCRIPT_URL, {
+        redirect: 'follow',
         method: "POST",
         mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8",
+        },
         body: JSON.stringify(payload),
       });
 
