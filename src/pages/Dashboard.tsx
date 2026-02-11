@@ -160,15 +160,34 @@ const Dashboard: React.FC = () => {
   const isFormularioIntegrado = activeSubmodule === 'abertura_assistencia' || activeSubmodule === 'fechamento_assistencia';
 
   const handleRegister = async () => {
-    if (!window.confirm("Confirma o registro desses dados no sistema?")) return;
+    // 1. Identifica se é Fechamento
+    const isClosing = activeSubmodule === 'fechamento_assistencia';
+    const actionVerb = isClosing ? "ENCERRAR" : "REGISTRAR";
+
+    // 2. Validação de Segurança para Fechamento
+    if (isClosing && !formData.protocolo) {
+      alert("ERRO: O Protocolo é obrigatório para encerrar um atendimento.");
+      return;
+    }
+
+    if (!window.confirm(`Confirma ${actionVerb} este atendimento no sistema?`)) return;
 
     setStatus({ submitting: true, success: null, error: null });
 
+    // 3. Monta o Payload Inteligente
     const payload = {
       ...formData,
       action: 'salvar_ou_atualizar',
-      status: 'ABERTO',
-      hora_solicitacao: new Date().toLocaleTimeString(),
+      
+      // Lógica do Status:
+      status: isClosing ? 'FECHADO' : 'ABERTO',
+      
+      // Lógica de Horários:
+      // Se é abertura, grava hora_solicitacao agora. 
+      // Se é fechamento, mantém a solicitacao antiga e grava encerramento agora.
+      hora_solicitacao: isClosing ? formData.hora_solicitacao : new Date().toLocaleTimeString(),
+      hora_encerramento: isClosing ? new Date().toLocaleTimeString() : '',
+      
       form_id: activeSubmodule,
       user_email: profile?.email,
       atendente: profile?.full_name || profile?.email,
@@ -176,23 +195,43 @@ const Dashboard: React.FC = () => {
     };
 
     try {
-      await fetch(GOOGLE_SCRIPT_URL, {
+      // 4. Envio Corrigido (SEM no-cors)
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
         redirect: 'follow',
         method: "POST",
-        mode: "no-cors",
+        // mode: "no-cors", <--- REMOVIDO PARA PODER LER A RESPOSTA
         headers: {
-          "Content-Type": "text/plain;charset=utf-8",
+          "Content-Type": "text/plain;charset=utf-8", // Truque Anti-CORS
         },
         body: JSON.stringify(payload),
       });
 
-      alert("Dados salvos com sucesso!");
-      setStatus({ submitting: false, success: true, error: null });
-      loadTickets();
+      // 5. Tratamento da Resposta Real
+      const text = await response.text();
+      const jsonString = text.match(/\{[\s\S]*\}/)?.[0];
 
-    } catch (error) {
+      if (jsonString) {
+        const data = JSON.parse(jsonString);
+        if (data.status === 'sucesso') {
+           alert(isClosing ? "✅ Atendimento Encerrado!" : "✅ Abertura Realizada!");
+           setStatus({ submitting: false, success: true, error: null });
+           loadTickets(); // Atualiza a lista lateral
+           
+           // Opcional: Se fechou, limpa a tela
+           if (isClosing) {
+             setFormData({});
+             setActiveTemplate(null);
+           }
+        } else {
+           throw new Error(data.msg);
+        }
+      } else {
+        throw new Error("Resposta inválida do servidor.");
+      }
+
+    } catch (error: any) {
       console.error("Erro:", error);
-      alert("Erro ao conectar com o sistema.");
+      alert("❌ Falha: " + (error.message || "Erro de conexão"));
       setStatus({ submitting: false, success: null, error: "Erro de conexão" });
     }
   };
@@ -455,11 +494,19 @@ const Dashboard: React.FC = () => {
                             type="button"
                             onClick={handleRegister}
                             disabled={status.submitting}
-                            className="group flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all duration-300 bg-emerald-500 text-white hover:bg-emerald-400 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className={`group flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all duration-300 text-white shadow-lg hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed
+                              ${activeSubmodule === 'fechamento_assistencia' 
+                                ? 'bg-red-600 hover:bg-red-500 shadow-red-500/30'  // Vermelho para Fechar
+                                : 'bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/30' // Verde para Abrir
+                              }`}
                           >
-                            <span>{status.submitting ? 'Enviando...' : 'Salvar Alterações'}</span>
+                            <span>
+                              {status.submitting 
+                                ? 'Processando...' 
+                                : (activeSubmodule === 'fechamento_assistencia' ? 'Encerrar Atendimento' : 'Salvar Abertura')}
+                            </span>
                             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center transition-colors">
-                              <i className="fa-solid fa-check text-sm"></i>
+                              <i className={`fa-solid ${activeSubmodule === 'fechamento_assistencia' ? 'fa-lock' : 'fa-check'} text-sm`}></i>
                             </div>
                           </button>
                       )}
