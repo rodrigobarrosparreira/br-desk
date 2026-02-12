@@ -4,146 +4,167 @@ import { TermoAcordoPDF, CobrancaPDF, TermoCancelamentoPDF, EntregaVeiculoPDF, T
 
 
 
+// ============================================================================
+// COMPONENTE: MAP MODAL HÍBRIDO (INTERNO + EXTERNO)
+// ============================================================================
 interface MapModalProps {
-  placeId?: string;
-  providerAddress: string;
+  provider: PrestadorResultado; // Recebe o objeto completo agora
   customerAddress: string;
   apiKey: string;
-  scriptUrl: string; // <--- PRECISAMOS DA URL DO SCRIPT AGORA
+  scriptUrl: string;
   onClose: () => void;
 }
 
-const MapModal: React.FC<MapModalProps> = ({ placeId, providerAddress, customerAddress, apiKey, scriptUrl, onClose }) => {
-  const [mode, setMode] = useState<'details' | 'directions'>('details');
-  const [info, setInfo] = useState<any>(null); // Estado para guardar os detalhes (telefone, etc)
+const MapModal: React.FC<MapModalProps> = ({ provider, customerAddress, apiKey, scriptUrl, onClose }) => {
+  const [info, setInfo] = useState<any>(provider); // Começa com os dados que já temos
   const [loadingInfo, setLoadingInfo] = useState(false);
+  const [showMap, setShowMap] = useState(false); // <--- CONTROLE DE LAZY LOAD DO MAPA
 
-  // Efeito para buscar os detalhes assim que o modal abre (se tiver ID)
+  // BUSCA DETALHES EXTRAS (SÓ SE FOR EXTERNO/GOOGLE)
   useEffect(() => {
-    if (placeId && mode === 'details') {
+    if (provider.origem === 'externo' && provider.place_id) {
       setLoadingInfo(true);
       fetch(scriptUrl, {
         method: 'POST',
-        body: JSON.stringify({ action: 'buscar_detalhes_place', place_id: placeId })
+        body: JSON.stringify({ action: 'buscar_detalhes_place', place_id: provider.place_id })
       })
         .then(r => r.json())
         .then(data => {
-          if (data.status === 'sucesso') setInfo(data.detalhes);
+          if (data.status === 'sucesso') {
+             // Mescla os detalhes novos com o que já tínhamos
+             setInfo((prev: any) => ({ ...prev, ...data.detalhes }));
+          }
         })
         .catch(err => console.error("Erro detalhes", err))
         .finally(() => setLoadingInfo(false));
     }
-  }, [placeId, mode]);
+  }, [provider, scriptUrl]);
 
-  // URLs do Maps (Iguais ao anterior)
-  const detailsQuery = placeId ? `place_id:${placeId}` : providerAddress;
-  const srcDetails = `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodeURIComponent(detailsQuery)}`;
-  const originQuery = placeId ? `place_id:${placeId}` : providerAddress;
-  const srcDirections = `https://www.google.com/maps/embed/v1/directions?key=${apiKey}&origin=${encodeURIComponent(originQuery)}&destination=${encodeURIComponent(customerAddress)}&mode=driving`;
+  // CONSTRUÇÃO DA URL DO MAPA (INTELIGENTE)
+  // Se tiver Lat/Lng (Interno), usa coordenada. Se for Externo, usa Place ID ou Endereço.
+  const destinationQuery = (provider.lat && provider.lng) 
+      ? `${provider.lat},${provider.lng}` 
+      : (provider.place_id ? `place_id:${provider.place_id}` : provider.endereco);
+      
+  const mapUrl = `https://www.google.com/maps/embed/v1/directions?key=${apiKey}&origin=${encodeURIComponent(customerAddress)}&destination=${encodeURIComponent(destinationQuery)}&mode=driving`;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/90 backdrop-blur-sm animate-in fade-in p-4">
-      <div className="bg-white w-full max-w-6xl h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm animate-in fade-in p-4">
+      <div className="bg-white w-full max-w-5xl h-[85vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95">
 
-        {/* COLUNA DA ESQUERDA: INFORMAÇÕES RICAS (Só aparece no modo Detalhes) */}
-        {mode === 'details' && (
-          <div className="w-full md:w-1/3 bg-slate-50 border-r border-slate-200 flex flex-col overflow-y-auto">
-            <div className="p-6">
-              <h2 className="text-xl font-black text-slate-800 leading-tight mb-2">{info?.nome || "Carregando..."}</h2>
-              <p className="text-sm text-slate-500 mb-4">{info?.endereco || providerAddress}</p>
+        {/* COLUNA DA ESQUERDA: DETALHES */}
+        <div className="w-full md:w-1/3 bg-slate-50 border-r border-slate-200 flex flex-col relative">
+          {/* Cabeçalho */}
+          <div className="p-6 border-b border-slate-100 bg-white">
+             <div className="flex justify-between items-start mb-2">
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${info.origem === 'interno' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                   {info.origem === 'interno' ? 'Parceiro Cadastrado' : 'Google Places'}
+                </span>
+                <button onClick={onClose} className="md:hidden text-slate-400"><i className="fa-solid fa-times"></i></button>
+             </div>
+             <h2 className="text-2xl font-black text-slate-800 leading-tight">{info.nome}</h2>
+             <p className="text-xs text-slate-500 mt-1 font-medium">{info.endereco}</p>
+          </div>
 
-              {loadingInfo ? (
-                <div className="flex items-center gap-2 text-cyan-600 font-bold text-sm animate-pulse">
-                  <i className="fa-solid fa-circle-notch fa-spin"></i> Buscando telefone e fotos...
+          {/* Conteúdo Scrollável */}
+          <div className="p-6 overflow-y-auto flex-1 space-y-6">
+             
+             {loadingInfo && (
+               <div className="flex items-center gap-2 text-cyan-600 font-bold text-sm animate-pulse">
+                 <i className="fa-solid fa-circle-notch fa-spin"></i> Buscando mais dados...
+               </div>
+             )}
+
+             {/* FOTO (Se houver) */}
+             {info.foto && (
+                <div className="w-full h-40 rounded-xl overflow-hidden shadow-sm bg-slate-200 shrink-0">
+                  <img src={info.foto} alt="Local" className="w-full h-full object-cover" />
                 </div>
-              ) : info ? (
-                <div className="space-y-4">
-                  {/* FOTO */}
-                  {info.foto && (
-                    <div className="w-full h-48 rounded-xl overflow-hidden shadow-sm bg-slate-200">
-                      <img src={info.foto} alt="Local" className="w-full h-full object-cover" />
-                    </div>
-                  )}
+             )}
 
-                  {/* TELEFONE (GRANDE DESTAQUE) */}
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Telefone / Contato</label>
-                    {info.telefone !== "Não informado" ? (
-                      <a href={`tel:${info.telefone}`} className="text-2xl font-black text-green-600 hover:underline flex items-center gap-2">
-                        <i className="fa-brands fa-whatsapp"></i> {info.telefone}
-                      </a>
-                    ) : (
-                      <span className="text-slate-400 font-medium">Não disponível</span>
-                    )}
-                  </div>
-
-                  {/* STATUS E AVALIAÇÃO */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-white p-3 rounded-xl border border-slate-200">
-                      <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Situação</label>
-                      {info.aberto_agora === true && <span className="text-green-600 font-bold text-sm">✅ Aberto Agora</span>}
-                      {info.aberto_agora === false && <span className="text-red-500 font-bold text-sm">❌ Fechado</span>}
-                      {info.aberto_agora === null && <span className="text-slate-500 text-sm">-</span>}
-                    </div>
-                    <div className="bg-white p-3 rounded-xl border border-slate-200">
-                      <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Avaliação</label>
-                      <div className="text-amber-500 font-black text-sm flex items-center gap-1">
-                        <span className="text-lg">{info.rating || "-"}</span>
-                        <i className="fa-solid fa-star text-xs"></i>
-                        <span className="text-slate-400 text-[10px] font-normal">({info.total_reviews || 0})</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* LINK EXTERNO */}
-                  {info.site && (
-                    <a href={info.site} target="_blank" rel="noreferrer" className="block w-full text-center py-3 rounded-xl bg-cyan-50 text-cyan-700 font-bold text-xs hover:bg-cyan-100 transition-colors">
-                      Abrir no Google Maps App <i className="fa-solid fa-arrow-up-right-from-square ml-1"></i>
+             {/* INFO CARD: CONTATO */}
+             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <label className="text-[10px] uppercase font-bold text-slate-400 mb-2 block flex items-center gap-2">
+                   <i className="fa-solid fa-phone"></i> Contato
+                </label>
+                {info.telefone ? (
+                  <div>
+                    <a href={`tel:${info.telefone}`} className="text-xl font-black text-slate-800 hover:text-cyan-600 transition-colors block">
+                       {info.telefone}
                     </a>
+                    {info.contato && <span className="text-xs text-slate-500 font-medium block mt-1">Falar com: {info.contato}</span>}
+                  </div>
+                ) : <span className="text-slate-400 text-sm italic">Telefone não informado</span>}
+             </div>
+
+             {/* INFO CARD: HORÁRIO & OBS */}
+             {(info.horario || info.obs) && (
+               <div className="space-y-3">
+                  {info.horario && (
+                    <div className="bg-white p-4 rounded-xl border border-slate-200">
+                       <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Horário</label>
+                       <p className="text-sm font-medium text-slate-700">{info.horario}</p>
+                       {/* Se for do Google e tiver info de aberto agora */}
+                       {info.aberto_agora !== undefined && (
+                          <span className={`text-[10px] font-bold uppercase mt-1 inline-block ${info.aberto_agora ? 'text-green-600' : 'text-red-500'}`}>
+                             {info.aberto_agora ? '• Aberto Agora' : '• Fechado Agora'}
+                          </span>
+                       )}
+                    </div>
                   )}
+
+                  {info.obs && (
+                    <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100">
+                       <label className="text-[10px] uppercase font-bold text-yellow-600 mb-1 block"><i className="fa-solid fa-triangle-exclamation mr-1"></i> Observações</label>
+                       <p className="text-sm text-yellow-800 leading-relaxed">{info.obs}</p>
+                    </div>
+                  )}
+               </div>
+             )}
+             
+             {/* DISTÂNCIA */}
+             {info.distancia && (
+                <div className="text-center py-4 bg-slate-100 rounded-xl border border-dashed border-slate-300">
+                   <span className="text-xs font-bold text-slate-400 uppercase">Distância Estimada</span>
+                   <p className="text-2xl font-black text-slate-700">{info.distancia.toFixed(1)} km</p>
                 </div>
-              ) : (
-                // Fallback se não tiver place_id (resultado interno)
-                <div className="p-4 bg-yellow-50 text-yellow-700 rounded-xl text-xs">
-                  Informações detalhadas indisponíveis para este parceiro interno. Verifique a planilha.
-                </div>
-              )}
-            </div>
+             )}
           </div>
-        )}
+        </div>
 
-        {/* COLUNA DA DIREITA: MAPA */}
-        <div className="flex-1 flex flex-col bg-slate-100 h-full relative">
+        {/* COLUNA DA DIREITA: MAPA (LAZY LOAD) */}
+        <div className="flex-1 bg-slate-200 relative flex flex-col">
+           <button onClick={onClose} className="absolute top-4 right-4 z-10 w-10 h-10 bg-white rounded-full shadow-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all flex items-center justify-center">
+              <i className="fa-solid fa-xmark text-lg"></i>
+           </button>
 
-          {/* Barra de Controle Superior */}
-          <div className="bg-white p-3 border-b border-slate-200 flex justify-between items-center shadow-sm z-10">
-            <div className="flex gap-2">
-              <button
-                onClick={() => setMode('details')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${mode === 'details' ? 'bg-cyan-600 text-white shadow' : 'text-slate-500 hover:bg-slate-100'}`}
-              >
-                <i className="fa-solid fa-store mr-2"></i> Ficha
-              </button>
-              <button
-                onClick={() => setMode('directions')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${mode === 'directions' ? 'bg-cyan-600 text-white shadow' : 'text-slate-500 hover:bg-slate-100'}`}
-              >
-                <i className="fa-solid fa-route mr-2"></i> Rota até Cliente
-              </button>
-            </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors flex items-center justify-center">
-              <i className="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-
-          {/* IFRAME */}
-          <iframe
-            className="w-full h-full flex-1"
-            style={{ border: 0 }}
-            loading="lazy"
-            allowFullScreen
-            src={mode === 'details' ? srcDetails : srcDirections}
-          ></iframe>
+           {!showMap ? (
+              // ESTADO INICIAL: BOTÃO PARA CARREGAR
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100 p-8 text-center">
+                 <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-sm mb-6 animate-in zoom-in duration-500">
+                    <i className="fa-solid fa-map-location-dot text-4xl text-cyan-500"></i>
+                 </div>
+                 <h3 className="text-xl font-black text-slate-700 mb-2">Visualizar Rota no Mapa</h3>
+                 <p className="text-sm text-slate-500 max-w-xs mb-8">
+                    Clique abaixo para traçar o caminho do endereço do cliente até este prestador.
+                 </p>
+                 <button 
+                   onClick={() => setShowMap(true)}
+                   className="px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white rounded-2xl font-bold uppercase tracking-widest shadow-lg shadow-cyan-500/30 transition-all hover:-translate-y-1 flex items-center gap-3"
+                 >
+                    <i className="fa-solid fa-route"></i> Carregar Rota
+                 </button>
+              </div>
+           ) : (
+              // ESTADO CARREGADO: IFRAME
+              <iframe
+                className="w-full h-full flex-1 animate-in fade-in"
+                style={{ border: 0 }}
+                loading="lazy"
+                allowFullScreen
+                src={mapUrl}
+              ></iframe>
+           )}
         </div>
 
       </div>
@@ -268,7 +289,22 @@ export interface PrestadorResultado {
   endereco: string;
   rating?: string | number;
   place_id?: string;
-  faturado?: boolean; // <--- NOVO
+  faturado?: boolean;
+  
+  // --- NOVOS CAMPOS QUE O BACKEND AGORA MANDA ---
+  lat?: number;
+  lng?: number;
+  origem_lat?: number;
+  origem_lng?: number;
+  distancia?: number;
+  horario?: string;
+  obs?: string;
+  contato?: string;
+  tipo?: string;
+  foto?: string;        // Para foto do Google Places
+  aberto_agora?: boolean; // Para Google Places
+  total_reviews?: number; // Para Google Places
+  site?: string;        // Para Google Places
 }
 
 // 1. Atualize a interface (note que removemos customerAddress e mudamos onSearch)
@@ -290,6 +326,7 @@ export const ProviderSearch: React.FC<ProviderSearchProps> = ({
   const [viewingPlace, setViewingPlace] = useState<PrestadorResultado | null>(null);
   const [localAddress, setLocalAddress] = useState('');
   const [serviceType, setServiceType] = useState('Guincho'); // Estado para o Seletor
+  const [selectedDetails, setSelectedDetails] = useState<any>(null); 
 
   const handleSearchClick = () => {
      if (localAddress) onSearch(localAddress, serviceType);
@@ -302,11 +339,10 @@ export const ProviderSearch: React.FC<ProviderSearchProps> = ({
   return (
     <>
       {viewingPlace && (
-        <MapModal 
-          apiKey={apiKey}
-          placeId={viewingPlace.place_id}
-          providerAddress={viewingPlace.endereco}
+        <MapModal
+          provider={viewingPlace} // <--- Passamos TUDO (Interno ou Externo)
           customerAddress={localAddress}
+          apiKey={apiKey}
           scriptUrl={scriptUrl}
           onClose={() => setViewingPlace(null)}
         />
