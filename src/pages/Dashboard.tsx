@@ -58,34 +58,35 @@ const Dashboard: React.FC = () => {
   const handleSendWebhook = async (
     protocolo: string, 
     tipo: string, 
-    customText?: string
+    dadosExtras?: string // Agora recebemos o dado variável (hora, texto, etc)
   ) => {
     
-    // URL do Webhook (pode personalizar se quiser canais diferentes)
     const url = WEBHOOKS.PADRAO; 
-
-    if (!url || url.includes("...")) {
-      alert("Webhook não configurado no código.");
-      return;
-    }
+    if (!url) return;
 
     let mensagemFinal = "";
 
-    // Lógica das mensagens
     switch (tipo) {
       case 'PRESTADOR_CAMINHO':
         mensagemFinal = `🚀 *Prestador A Caminho*\nProtocolo: ${protocolo}\nStatus: Deslocamento iniciado`;
         break;
       case 'NO_LOCAL':
-        mensagemFinal = `📍 *Prestador No Local*\nProtocolo: ${protocolo}\nStatus: Atendimento iniciado`;
+        mensagemFinal = `📍 *Prestador No Local*\nProtocolo: ${protocolo}\nStatus: Chegou ao local`;
+        break;
+      case 'SAIDA_BASE': // Exemplo com Horário
+        mensagemFinal = `🕒 *Saída da Base*\nProtocolo: ${protocolo}\nHorário de Saída: ${dadosExtras}`;
+        break;
+      case 'PREVISAO': // Exemplo com Previsão
+        mensagemFinal = `⏳ *Previsão Atualizada*\nProtocolo: ${protocolo}\nNova Previsão: ${dadosExtras}`;
         break;
       case 'FINALIZADO':
         mensagemFinal = `✅ *Atendimento Finalizado*\nProtocolo: ${protocolo}`;
         break;
       case 'CUSTOM':
-        if (!customText) return; // Proteção
-        mensagemFinal = `💬 *Mensagem da Central*\nProtocolo: ${protocolo}\nMsg: ${customText}`;
+        mensagemFinal = `💬 *Mensagem da Central*\nProtocolo: ${protocolo}\nObs: ${dadosExtras}`;
         break;
+      default:
+        mensagemFinal = `🔔 *Atualização*\nProtocolo: ${protocolo}\nStatus: ${tipo}`;
     }
 
     try {
@@ -94,25 +95,20 @@ const Dashboard: React.FC = () => {
         headers: { 'Content-Type': 'application/json; charset=UTF-8' },
         body: JSON.stringify({ text: mensagemFinal })
       });
-      alert(`Webhook enviado com sucesso!`);
+      alert(`Status enviado!`);
     } catch (e) {
-      console.error(e);
       alert("Erro ao enviar webhook.");
     }
   };
 
-  // Função Auxiliar para Navegar Já Editando
   const handleQuickAction = (protocolo: string, action: 'abertura' | 'fechamento') => {
-      // 1. Define o destino
-      const targetSubmodule = action === 'abertura' ? 'abertura_assistencia' : 'fechamento_assistencia';
+      // Define para onde vamos
+      const target = action === 'abertura' ? 'abertura_assistencia' : 'fechamento_assistencia';
       
-      // 2. Navega
-      if (activeSubmodule !== targetSubmodule) {
-          handleNavigate('assistance', targetSubmodule);
-      }
+      console.log(`⚡ Editando ${protocolo} em ${target}`);
       
-      // 3. Carrega os dados
-      handleEditTicket(protocolo);
+      // Chama a função de busca já avisando para onde navegar depois
+      handleEditTicket(protocolo, target);
   };
 
   // --- FUNÇÃO DE CARREGAR TICKETS (BLINDADA) ---
@@ -165,11 +161,12 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleEditTicket = async (protocolo: string) => {
+  const handleEditTicket = async (protocolo: string, targetSubmodule: string = 'abertura_assistencia') => {
     setIsLoading(true);
     try {
       const response = await fetch(GOOGLE_SCRIPT_URL, {
         method: 'POST',
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ 
           action: 'buscar_detalhes_protocolo', 
           protocolo: protocolo,
@@ -182,9 +179,9 @@ const Dashboard: React.FC = () => {
       const data = JSON.parse(cleanText);
       
       if (data.status === 'sucesso') {
-        if (activeSubmodule !== 'abertura_assistencia') {
-            handleNavigate('assistance', 'abertura_assistencia'); 
-        }
+        // CORREÇÃO: Navega para onde pedimos (targetSubmodule), não sempre para abertura
+        handleNavigate('assistance', targetSubmodule); 
+        
         setFormData(data.dados);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
@@ -495,7 +492,7 @@ const Dashboard: React.FC = () => {
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
               
               {/* COLUNA DA ESQUERDA: BOTÕES DE AÇÃO (Ocupa 9 colunas) */}
-              <div className="xl:col-span-7 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+              <div className="xl:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4">
                 {currentDeptObj?.submodules.map((sub) => (
                   <button
                     key={sub.id}
@@ -517,7 +514,7 @@ const Dashboard: React.FC = () => {
               </div>
 
               {/* COLUNA DA DIREITA: LISTA DE ATENDIMENTOS (Ocupa 3 colunas) */}
-              <div className="xl:col-span-5 flex flex-col h-full space-y-4">
+              <div className="xl:col-span-4 flex flex-col h-full space-y-4">
                  <div className="bg-white p-4 rounded-2xl border border-cyan-100 shadow-sm">
                     <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-2">
                        <i className="fa-solid fa-list-ul text-cyan-500"></i>

@@ -15,25 +15,24 @@ interface MapModalProps {
   onClose: () => void;
 }
 
-const WEBHOOK_BUTTONS = [
+const WEBHOOK_OPTIONS = [
+  { id: 'PRESTADOR_CAMINHO', label: '🚀 Prestador a Caminho', needsInput: false },
+  { id: 'NO_LOCAL', label: '📍 Prestador no Local', needsInput: false },
   { 
-    id: 'PRESTADOR_CAMINHO', 
-    label: 'A Caminho', 
-    icon: 'fa-motorcycle', 
-    color: 'blue' // Opções: blue, purple, green, red, amber, cyan
+    id: 'SAIDA_BASE', 
+    label: '🕒 Informar Saída da Base', 
+    needsInput: true, 
+    inputType: 'time', 
+    inputLabel: 'Horário de Saída' 
   },
   { 
-    id: 'NO_LOCAL', 
-    label: 'No Local', 
-    icon: 'fa-map-pin', 
-    color: 'purple' 
+    id: 'PREVISAO', 
+    label: '⏳ Atualizar Previsão', 
+    needsInput: true, 
+    inputType: 'time', 
+    inputLabel: 'Nova Previsão de Chegada' 
   },
-  { 
-    id: 'FINALIZADO', 
-    label: 'Finalizado', 
-    icon: 'fa-flag-checkered', 
-    color: 'green' 
-  },
+  { id: 'FINALIZADO', label: '✅ Finalizar Atendimento', needsInput: false },
 ];
 
 // Helper para traduzir a cor simples em classes Tailwind completas
@@ -722,9 +721,7 @@ interface TicketListProps {
   onRefresh: () => void;
   currentAttendant: string;
   onQuickEdit?: (protocolo: string, action: 'abertura' | 'fechamento') => void;
-  
-  // MUDANÇA 1: Atualizamos os tipos aceitos aqui
-  onWebhook?: (protocolo: string, type: string, customText?: string) => void;
+  onWebhook?: (protocolo: string, type: string, extraData?: string) => void;
 }
 
 export const TicketList: React.FC<TicketListProps> = ({ 
@@ -732,66 +729,92 @@ export const TicketList: React.FC<TicketListProps> = ({
 }) => {
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
   
-  // MUDANÇA 2: Estado para guardar o texto customizado de cada protocolo
+  // Estado para controlar qual opção do menu está selecionada em cada card
+  const [selectedHook, setSelectedHook] = React.useState<Record<string, string>>({});
+  // Estado para o valor do input (hora ou texto)
+  const [hookInputVal, setHookInputVal] = React.useState<Record<string, string>>({});
+  // Estado para mensagem customizada (chat)
   const [customMessages, setCustomMessages] = React.useState<Record<string, string>>({});
 
   const toggleExpand = (protocolo: string) => {
     setExpandedId(expandedId === protocolo ? null : protocolo);
   };
 
-  const handleCustomMsgChange = (protocolo: string, text: string) => {
-    setCustomMessages(prev => ({ ...prev, [protocolo]: text }));
+  const handleHookChange = (protocolo: string, hookId: string) => {
+    setSelectedHook(prev => ({ ...prev, [protocolo]: hookId }));
+    setHookInputVal(prev => ({ ...prev, [protocolo]: '' })); // Limpa input anterior
+  };
+
+  const executeWebhook = (protocolo: string) => {
+    const hookId = selectedHook[protocolo];
+    const config = WEBHOOK_OPTIONS.find(w => w.id === hookId);
+    
+    if (!config) return;
+
+    if (config.needsInput && !hookInputVal[protocolo]) {
+      alert(`Por favor, preencha o campo: ${config.inputLabel}`);
+      return;
+    }
+
+    // Envia (se tiver input, manda ele, se não, manda vazio)
+    onWebhook?.(protocolo, hookId, hookInputVal[protocolo]);
+    
+    // Feedback visual opcional: limpar seleção
+    // setSelectedHook(prev => ({ ...prev, [protocolo]: '' }));
   };
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-lg shadow-slate-200/40 overflow-hidden h-full flex flex-col animate-in slide-in-from-left-4 duration-500">
       
-      {/* Cabeçalho igual ao anterior... */}
-      <div className="bg-slate-50/80 px-4 py-4 border-b border-slate-100 flex justify-between items-center backdrop-blur-sm">
+      {/* Cabeçalho */}
+      <div className="bg-slate-50/80 px-5 py-5 border-b border-slate-100 flex justify-between items-center backdrop-blur-sm">
         <div>
-          <h4 className="font-extrabold text-slate-700 text-xs uppercase tracking-widest flex items-center gap-2">
-            <i className="fa-solid fa-tower-broadcast text-cyan-600"></i> Central de Chamados
+          <h4 className="font-extrabold text-slate-700 text-sm uppercase tracking-widest flex items-center gap-2">
+            <i className="fa-solid fa-tower-broadcast text-cyan-600"></i> Central
           </h4>
-          <p className="text-[10px] text-slate-400 font-bold mt-0.5">Visão Global</p>
+          <p className="text-xs text-slate-400 font-bold mt-0.5">Visão Global</p>
         </div>
-        <button onClick={onRefresh} disabled={isLoading} className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-cyan-600 hover:border-cyan-300 hover:shadow-sm transition-all flex items-center justify-center">
+        <button onClick={onRefresh} disabled={isLoading} className="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-cyan-600 hover:border-cyan-300 hover:shadow-sm transition-all flex items-center justify-center">
           <i className={`fa-solid fa-rotate ${isLoading ? 'fa-spin' : ''}`}></i>
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2.5 bg-slate-50/30">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3 bg-slate-50/30">
         {tickets.length === 0 && !isLoading ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-2 opacity-60">
-            <i className="fa-regular fa-folder-open text-3xl"></i>
-            <span className="text-xs font-medium italic">Nenhum chamado pendente.</span>
+          <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-3 opacity-60">
+            <i className="fa-regular fa-folder-open text-4xl"></i>
+            <span className="text-sm font-medium italic">Nenhum chamado pendente.</span>
           </div>
         ) : (
           tickets.map((t) => {
             const isExpanded = expandedId === t.protocolo;
+            const currentHookId = selectedHook[t.protocolo];
+            const currentHookConfig = WEBHOOK_OPTIONS.find(w => w.id === currentHookId);
             
             return (
               <div key={t.protocolo} className={`group relative bg-white rounded-xl border transition-all cursor-pointer overflow-hidden ${isExpanded ? 'border-cyan-400 shadow-md ring-1 ring-cyan-100' : 'border-slate-100 hover:border-cyan-300 shadow-sm'}`}>
-                {/* Cabeçalho do Card (Mantido Igual) */}
-                <div className="p-3" onClick={() => toggleExpand(t.protocolo)}>
+                
+                {/* CABEÇALHO DO CARD (Sempre Visível) - Fontes Aumentadas */}
+                <div className="p-4" onClick={() => toggleExpand(t.protocolo)}>
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <span className="font-black text-xs text-slate-700 block mb-0.5">{t.associado}</span>
-                      <div className="flex items-center gap-1 text-[9px] text-slate-400">
-                         <i className="fa-solid fa-user-headset"></i> 
-                         <span>{t.atendente ? t.atendente.split(' ')[0] : 'Sem dono'}</span>
+                      <span className="font-black text-sm text-slate-800 block mb-1">{t.associado}</span>
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                         <i className="fa-solid fa-user-headset text-cyan-500"></i> 
+                         <span className="font-bold">{t.atendente ? t.atendente.split(' ')[0] : 'Sem dono'}</span>
                       </div>
                     </div>
-                    <i className={`fa-solid fa-chevron-down text-slate-300 text-xs transition-transform duration-300 ${isExpanded ? 'rotate-180 text-cyan-500' : ''}`}></i>
+                    <i className={`fa-solid fa-chevron-down text-slate-300 text-sm transition-transform duration-300 ${isExpanded ? 'rotate-180 text-cyan-500' : ''}`}></i>
                   </div>
-                  <div className="flex items-center gap-2">
-                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${
+                  <div className="flex items-center gap-2 mt-2">
+                     <span className={`text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-wider ${
                         t.status === 'ABERTO' ? 'bg-green-50 text-green-600 border-green-100' : 
                         t.status === 'FECHADO' ? 'bg-slate-100 text-slate-500 border-slate-200' :
                         'bg-amber-50 text-amber-600 border-amber-100'
                       }`}>
                         {t.status}
                       </span>
-                      <span className="text-[9px] font-mono text-slate-400 bg-slate-50 px-1 rounded border border-slate-100">
+                      <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded border border-slate-200 font-bold">
                         {t.protocolo}
                       </span>
                   </div>
@@ -799,79 +822,109 @@ export const TicketList: React.FC<TicketListProps> = ({
 
                 {/* ÁREA EXPANSÍVEL */}
                 {isExpanded && (
-                  <div className="bg-slate-50 border-t border-slate-100 p-3 animate-in slide-in-from-top-2 duration-200 space-y-4">
+                  <div className="bg-slate-50 border-t border-slate-100 p-4 animate-in slide-in-from-top-2 duration-200 space-y-5">
                      
-                     {/* 1. Editar Dados */}
+                     {/* 1. EDITAR DADOS (Botões Maiores) */}
                      <div>
-                        <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Ações Rápidas</label>
-                        <div className="grid grid-cols-2 gap-2">
-                           <button onClick={(e) => { e.stopPropagation(); onQuickEdit?.(t.protocolo, 'abertura'); }} className="px-2 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-600 hover:text-cyan-600 hover:border-cyan-300 transition-colors flex items-center justify-center gap-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-wider">Editar Dados</label>
+                        <div className="grid grid-cols-2 gap-3">
+                           <button onClick={(e) => { e.stopPropagation(); onQuickEdit?.(t.protocolo, 'abertura'); }} className="py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:text-cyan-600 hover:border-cyan-300 transition-colors flex items-center justify-center gap-2 shadow-sm">
                               <i className="fa-solid fa-pen"></i> Abertura
                            </button>
-                           <button onClick={(e) => { e.stopPropagation(); onQuickEdit?.(t.protocolo, 'fechamento'); }} className="px-2 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-600 hover:text-red-500 hover:border-red-300 transition-colors flex items-center justify-center gap-1">
+                           <button onClick={(e) => { e.stopPropagation(); onQuickEdit?.(t.protocolo, 'fechamento'); }} className="py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:text-red-500 hover:border-red-300 transition-colors flex items-center justify-center gap-2 shadow-sm">
                               <i className="fa-solid fa-pen-to-square"></i> Fechamento
                            </button>
                         </div>
                      </div>
 
-                     {/* 2. WEBHOOKS (Botões Fixos + Customizado) */}
-                     {/* 2. WEBHOOKS DINÂMICOS */}
+                     {/* 2. WEBHOOK COM MENU SUSPENSO */}
                      {onWebhook && (
                        <div>
-                          <label className="text-[9px] font-bold text-slate-400 uppercase mb-2 block">
-                             Comunicação via Webhook
+                          <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-wider">
+                             Status & Reporte (Webhook)
                           </label>
                           
-                          {/* GRID DINÂMICO: Se tiver 3 botões, usa 3 colunas. Se tiver 4, usa 4 (ou quebra linha) */}
-                          <div className={`grid gap-2 mb-3 ${WEBHOOK_BUTTONS.length <= 3 ? `grid-cols-${WEBHOOK_BUTTONS.length}` : 'grid-cols-2'}`}>
-                             
-                             {WEBHOOK_BUTTONS.map((btn) => (
-                               <button 
-                                 key={btn.id}
-                                 onClick={(e) => { 
-                                    e.stopPropagation(); 
-                                    // O TypeScript vai reclamar se o ID não estiver na lista de tipos, 
-                                    // então forçamos "as any" aqui para permitir flexibilidade total
-                                    onWebhook(t.protocolo, btn.id as any); 
-                                 }}
-                                 className={`py-2 border rounded-lg text-[9px] font-bold transition-colors flex flex-col items-center gap-1 ${getButtonColorClasses(btn.color)}`}
-                                 title={btn.label}
-                               >
-                                  <i className={`fa-solid ${btn.icon} text-xs`}></i> 
-                                  {btn.label}
-                               </button>
-                             ))}
+                          <div className="flex gap-2 items-start">
+                             <div className="flex-1 space-y-2">
+                                {/* O MENU SELECT */}
+                                <div className="relative">
+                                  <select 
+                                    className="w-full pl-3 pr-8 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-cyan-500 appearance-none shadow-sm cursor-pointer"
+                                    value={currentHookId || ''}
+                                    onChange={(e) => handleHookChange(t.protocolo, e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <option value="">Selecione uma ação...</option>
+                                    {WEBHOOK_OPTIONS.map(opt => (
+                                      <option key={opt.id} value={opt.id}>{opt.label}</option>
+                                    ))}
+                                  </select>
+                                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                    <i className="fa-solid fa-chevron-down text-xs"></i>
+                                  </div>
+                                </div>
 
+                                {/* INPUT CONDICIONAL (Aparece se needsInput for true) */}
+                                {currentHookConfig?.needsInput && (
+                                  <div className="animate-in fade-in slide-in-from-top-1">
+                                     <label className="text-[9px] font-bold text-cyan-600 uppercase ml-1 mb-1 block">
+                                       {currentHookConfig.inputLabel}:
+                                     </label>
+                                     <input 
+                                        type={currentHookConfig.inputType || 'text'}
+                                        className="w-full px-3 py-2 bg-cyan-50 border border-cyan-200 rounded-lg text-xs font-bold text-cyan-800 outline-none focus:ring-2 focus:ring-cyan-500/20"
+                                        value={hookInputVal[t.protocolo] || ''}
+                                        onChange={(e) => setHookInputVal(prev => ({ ...prev, [t.protocolo]: e.target.value }))}
+                                        onClick={(e) => e.stopPropagation()}
+                                        autoFocus
+                                     />
+                                  </div>
+                                )}
+                             </div>
+
+                             {/* BOTÃO DE ENVIAR (Seta) */}
+                             <button
+                               onClick={(e) => { e.stopPropagation(); executeWebhook(t.protocolo); }}
+                               disabled={!currentHookId}
+                               className="h-[38px] w-[38px] bg-slate-800 text-white rounded-xl flex items-center justify-center hover:bg-cyan-600 disabled:opacity-50 disabled:bg-slate-300 shadow-md transition-all mt-px"
+                               title="Enviar Status"
+                             >
+                               <i className="fa-solid fa-paper-plane text-xs"></i>
+                             </button>
                           </div>
+                       </div>
+                     )}
 
-                          {/* MENSAGEM CUSTOMIZADA (Continua igual) */}
+                     {/* 3. MENSAGEM LIVRE (CHAT) */}
+                     {onWebhook && (
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-wider">Mensagem Livre</label>
                           <div className="flex gap-2">
                             <input 
                               type="text" 
-                              placeholder="Mensagem personalizada..."
+                              placeholder="Escrever obs..."
                               value={customMessages[t.protocolo] || ''}
-                              onChange={(e) => handleCustomMsgChange(t.protocolo, e.target.value)}
+                              onChange={(e) => setCustomMessages(prev => ({ ...prev, [t.protocolo]: e.target.value }))}
                               onClick={(e) => e.stopPropagation()}
-                              className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-700 focus:border-cyan-500 outline-none"
+                              className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-700 focus:border-cyan-500 outline-none shadow-sm"
                             />
                             <button
                               onClick={(e) => { 
                                 e.stopPropagation(); 
                                 onWebhook(t.protocolo, 'CUSTOM', customMessages[t.protocolo]); 
-                                handleCustomMsgChange(t.protocolo, ''); 
+                                setCustomMessages(prev => ({ ...prev, [t.protocolo]: '' })); 
                               }}
                               disabled={!customMessages[t.protocolo]}
-                              className="w-8 h-full bg-slate-800 text-white rounded-lg hover:bg-black disabled:opacity-50 flex items-center justify-center transition-colors"
+                              className="h-[38px] w-[38px] bg-white border border-slate-200 text-slate-400 rounded-xl hover:text-cyan-600 hover:border-cyan-300 disabled:opacity-50 flex items-center justify-center transition-all shadow-sm"
                             >
-                              <i className="fa-solid fa-paper-plane text-xs"></i>
+                              <i className="fa-regular fa-comment-dots"></i>
                             </button>
                           </div>
-                       </div>
+                        </div>
                      )}
 
-                     {/* 3. Encerrar */}
-                     <button onClick={(e) => { e.stopPropagation(); onQuickEdit?.(t.protocolo, 'fechamento'); }} className="w-full py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg text-[10px] font-bold hover:bg-red-500 hover:text-white hover:shadow-md transition-all flex items-center justify-center gap-2">
-                        <i className="fa-solid fa-lock"></i> Encerrar
+                     <button onClick={(e) => { e.stopPropagation(); onQuickEdit?.(t.protocolo, 'fechamento'); }} className="w-full py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-xs font-bold hover:bg-red-500 hover:text-white hover:shadow-md transition-all flex items-center justify-center gap-2 mt-2">
+                        <i className="fa-solid fa-lock"></i> Encerrar Atendimento
                      </button>
                   </div>
                 )}
