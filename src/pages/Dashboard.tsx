@@ -115,7 +115,7 @@ const Dashboard: React.FC = () => {
       
       if (data.status === 'sucesso') {
         if (activeSubmodule !== 'abertura_assistencia') {
-            handleNavigate('assistencia', 'abertura_assistencia'); 
+            handleNavigate('assistance', 'abertura_assistencia'); 
         }
         setFormData(data.dados);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -405,7 +405,8 @@ const Dashboard: React.FC = () => {
       {activeDept === 'home' ? (
         renderHome()
       ) : !activeSubmodule ? (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-in fade-in duration-700">
+          {/* CABEÇALHO DO DEPARTAMENTO */}
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
               <i className={`fa-solid ${currentDeptObj?.icon} text-cyan-500`}></i>
@@ -419,26 +420,80 @@ const Dashboard: React.FC = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4">
-            {currentDeptObj?.submodules.map((sub) => (
-              <button
-                key={sub.id}
-                onClick={() => handleNavigate(activeDept, sub.id)}
-                className="bg-white p-8 rounded-2xl border border-cyan-50 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all text-left group relative overflow-hidden"
-              >
-                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <i className={`fa-solid ${sub.isTerm ? 'fa-file-signature' : currentDeptObj.icon} text-6xl text-cyan-600`}></i>
-                </div>
-                <div className="w-12 h-12 bg-cyan-500 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-md shadow-cyan-200">
-                    <i className={`fa-solid ${sub.isTerm ? 'fa-file-signature' : currentDeptObj.icon}`}></i>
-                </div>
-                <h3 className="text-lg font-black text-slate-800 mb-1 relative z-10">{sub.name}</h3>
-                <p className="text-xs text-slate-500 font-medium relative z-10">
-                  {sub.isTerm ? 'Emite documento PDF formal.' : 'Gera mensagem formatada para WhatsApp.'}
-                </p>
-              </button>
-            ))}
-          </div>
+          {/* AQUI ESTÁ A MUDANÇA:
+              Se for Assistência, divide a tela. Se for outro depto, mostra só botões.
+          */}
+          {activeDept === 'assistance' ? (
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+              
+              {/* COLUNA DA ESQUERDA: BOTÕES DE AÇÃO (Ocupa 9 colunas) */}
+              <div className="xl:col-span-9 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {currentDeptObj?.submodules.map((sub) => (
+                  <button
+                    key={sub.id}
+                    onClick={() => handleNavigate(activeDept, sub.id)}
+                    className="bg-white p-8 rounded-2xl border border-cyan-50 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all text-left group relative overflow-hidden h-full"
+                  >
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <i className={`fa-solid ${sub.isTerm ? 'fa-file-signature' : currentDeptObj.icon} text-6xl text-cyan-600`}></i>
+                    </div>
+                    <div className="w-12 h-12 bg-cyan-500 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-md shadow-cyan-200">
+                        <i className={`fa-solid ${sub.isTerm ? 'fa-file-signature' : currentDeptObj.icon}`}></i>
+                    </div>
+                    <h3 className="text-lg font-black text-slate-800 mb-1 relative z-10">{sub.name}</h3>
+                    <p className="text-xs text-slate-500 font-medium relative z-10">
+                      {sub.isTerm ? 'Emite documento PDF formal.' : 'Acessar formulário e registro.'}
+                    </p>
+                  </button>
+                ))}
+              </div>
+
+              {/* COLUNA DA DIREITA: LISTA DE ATENDIMENTOS (Ocupa 3 colunas) */}
+              <div className="xl:col-span-3 flex flex-col h-full space-y-4">
+                 <div className="bg-white p-4 rounded-2xl border border-cyan-100 shadow-sm">
+                    <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-2">
+                       <i className="fa-solid fa-list-ul text-cyan-500"></i>
+                       Em Aberto
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                       Atendimentos aguardando fechamento. Clique para editar.
+                    </p>
+                 </div>
+                 
+                 {/* Reutilizando seu componente TicketList */}
+                 <TicketList 
+                    tickets={tickets} 
+                    onSelectTicket={handleEditTicket} 
+                    isLoading={isLoadingTickets} 
+                    onRefresh={loadTickets} 
+                    currentAttendant={profile?.full_name || profile?.email || 'Usuário'}
+                 />
+              </div>
+
+            </div>
+          ) : (
+            // LAYOUT PADRÃO PARA OUTROS DEPARTAMENTOS (SÓ BOTÕES)
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4">
+              {currentDeptObj?.submodules.map((sub) => (
+                <button
+                  key={sub.id}
+                  onClick={() => handleNavigate(activeDept, sub.id)}
+                  className="bg-white p-8 rounded-2xl border border-cyan-50 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all text-left group relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                      <i className={`fa-solid ${sub.isTerm ? 'fa-file-signature' : currentDeptObj.icon} text-6xl text-cyan-600`}></i>
+                  </div>
+                  <div className="w-12 h-12 bg-cyan-500 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-md shadow-cyan-200">
+                      <i className={`fa-solid ${sub.isTerm ? 'fa-file-signature' : currentDeptObj.icon}`}></i>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-800 mb-1 relative z-10">{sub.name}</h3>
+                  <p className="text-xs text-slate-500 font-medium relative z-10">
+                    {sub.isTerm ? 'Emite documento PDF formal.' : 'Gera mensagem formatada para WhatsApp.'}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-8 animate-in fade-in duration-700">

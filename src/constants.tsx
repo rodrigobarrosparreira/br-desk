@@ -1301,4 +1301,5 @@ Muito obrigado!
 
 export const DEPARTMENT_TEMPLATES: Record<DepartmentId, Template[]> = {
   home: [], assistance: [], registration: [], tracking: [], events: [], cancellations: [], billing: [], commercial: [], legal: [], financing: [],
+  assistencia: []
 };
