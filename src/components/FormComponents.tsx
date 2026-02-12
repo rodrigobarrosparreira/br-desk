@@ -729,12 +729,12 @@ export const TicketList: React.FC<TicketListProps> = ({
 }) => {
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
   
-  // Estado para controlar qual opção do menu está selecionada em cada card
+  // Estado da Ação Selecionada
   const [selectedHook, setSelectedHook] = React.useState<Record<string, string>>({});
-  // Estado para o valor do input (hora ou texto)
+  // Estado do Dado Específico (ex: Horário)
   const [hookInputVal, setHookInputVal] = React.useState<Record<string, string>>({});
-  // Estado para mensagem customizada (chat)
-  const [customMessages, setCustomMessages] = React.useState<Record<string, string>>({});
+  // Estado da Observação (Agora serve para todos)
+  const [obsVal, setObsVal] = React.useState<Record<string, string>>({});
 
   const toggleExpand = (protocolo: string) => {
     setExpandedId(expandedId === protocolo ? null : protocolo);
@@ -742,31 +742,50 @@ export const TicketList: React.FC<TicketListProps> = ({
 
   const handleHookChange = (protocolo: string, hookId: string) => {
     setSelectedHook(prev => ({ ...prev, [protocolo]: hookId }));
-    setHookInputVal(prev => ({ ...prev, [protocolo]: '' })); // Limpa input anterior
+    // Limpa inputs ao trocar a ação para evitar confusão
+    setHookInputVal(prev => ({ ...prev, [protocolo]: '' }));
+    // setObsVal(prev => ({ ...prev, [protocolo]: '' })); // Opcional: manter ou limpar obs
   };
 
   const executeWebhook = (protocolo: string) => {
     const hookId = selectedHook[protocolo];
-    const config = WEBHOOK_OPTIONS.find(w => w.id === hookId);
-    
-    if (!config) return;
+    if (!hookId) return;
 
-    if (config.needsInput && !hookInputVal[protocolo]) {
+    const config = WEBHOOK_OPTIONS.find(w => w.id === hookId);
+    const specificData = hookInputVal[protocolo] || '';
+    const observation = obsVal[protocolo] || '';
+
+    // Validação do dado obrigatório (ex: horário)
+    if (config?.needsInput && !specificData) {
       alert(`Por favor, preencha o campo: ${config.inputLabel}`);
       return;
     }
 
-    // Envia (se tiver input, manda ele, se não, manda vazio)
-    onWebhook?.(protocolo, hookId, hookInputVal[protocolo]);
-    
-    // Feedback visual opcional: limpar seleção
-    // setSelectedHook(prev => ({ ...prev, [protocolo]: '' }));
+    // Validação para "Mensagem Livre" (CUSTOM) -> Obs é obrigatória
+    if (hookId === 'CUSTOM' && !observation) {
+        alert("Por favor, escreva uma mensagem.");
+        return;
+    }
+
+    // Monta a mensagem final combinando Dado Específico + Observação
+    let finalData = specificData;
+    if (observation) {
+        // Se já tem dado específico, quebra linha. Se não, é só a obs.
+        finalData = finalData ? `${finalData}\n📝 Obs: ${observation}` : observation;
+    }
+
+    // Envia
+    onWebhook?.(protocolo, hookId, finalData);
+
+    // Feedback visual (opcional: limpar campos após envio)
+    setObsVal(prev => ({ ...prev, [protocolo]: '' }));
+    setHookInputVal(prev => ({ ...prev, [protocolo]: '' }));
   };
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-lg shadow-slate-200/40 overflow-hidden h-full flex flex-col animate-in slide-in-from-left-4 duration-500">
       
-      {/* Cabeçalho */}
+      {/* Cabeçalho do Painel */}
       <div className="bg-slate-50/80 px-5 py-5 border-b border-slate-100 flex justify-between items-center backdrop-blur-sm">
         <div>
           <h4 className="font-extrabold text-slate-700 text-sm uppercase tracking-widest flex items-center gap-2">
@@ -790,11 +809,12 @@ export const TicketList: React.FC<TicketListProps> = ({
             const isExpanded = expandedId === t.protocolo;
             const currentHookId = selectedHook[t.protocolo];
             const currentHookConfig = WEBHOOK_OPTIONS.find(w => w.id === currentHookId);
+            const isFinalizing = currentHookId === 'FINALIZADO';
             
             return (
               <div key={t.protocolo} className={`group relative bg-white rounded-xl border transition-all cursor-pointer overflow-hidden ${isExpanded ? 'border-cyan-400 shadow-md ring-1 ring-cyan-100' : 'border-slate-100 hover:border-cyan-300 shadow-sm'}`}>
                 
-                {/* CABEÇALHO DO CARD (Sempre Visível) - Fontes Aumentadas */}
+                {/* CABEÇALHO DO CARD (Clicável) */}
                 <div className="p-4" onClick={() => toggleExpand(t.protocolo)}>
                   <div className="flex justify-between items-start mb-2">
                     <div>
@@ -820,112 +840,99 @@ export const TicketList: React.FC<TicketListProps> = ({
                   </div>
                 </div>
 
-                {/* ÁREA EXPANSÍVEL */}
+                {/* ÁREA EXPANSÍVEL (AÇÕES) */}
                 {isExpanded && (
-                  <div className="bg-slate-50 border-t border-slate-100 p-4 animate-in slide-in-from-top-2 duration-200 space-y-5">
+                  <div className="bg-slate-50 border-t border-slate-100 p-4 animate-in slide-in-from-top-2 duration-200 space-y-5" onClick={(e) => e.stopPropagation()}>
                      
-                     {/* 1. EDITAR DADOS (Botões Maiores) */}
+                     {/* 1. BOTÕES DE EDITAR FORMULÁRIO */}
                      <div>
                         <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-wider">Editar Dados</label>
                         <div className="grid grid-cols-2 gap-3">
-                           <button onClick={(e) => { e.stopPropagation(); onQuickEdit?.(t.protocolo, 'abertura'); }} className="py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:text-cyan-600 hover:border-cyan-300 transition-colors flex items-center justify-center gap-2 shadow-sm">
+                           <button onClick={() => onQuickEdit?.(t.protocolo, 'abertura')} className="py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:text-cyan-600 hover:border-cyan-300 transition-colors flex items-center justify-center gap-2 shadow-sm">
                               <i className="fa-solid fa-pen"></i> Abertura
                            </button>
-                           <button onClick={(e) => { e.stopPropagation(); onQuickEdit?.(t.protocolo, 'fechamento'); }} className="py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:text-red-500 hover:border-red-300 transition-colors flex items-center justify-center gap-2 shadow-sm">
+                           <button onClick={() => onQuickEdit?.(t.protocolo, 'fechamento')} className="py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:text-red-500 hover:border-red-300 transition-colors flex items-center justify-center gap-2 shadow-sm">
                               <i className="fa-solid fa-pen-to-square"></i> Fechamento
                            </button>
                         </div>
                      </div>
 
-                     {/* 2. WEBHOOK COM MENU SUSPENSO */}
+                     {/* 2. ÁREA UNIFICADA DE WEBHOOK */}
                      {onWebhook && (
-                       <div>
-                          <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-wider">
-                             Status & Reporte (Webhook)
+                       <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-wider flex items-center gap-2">
+                             <i className="fa-solid fa-bullhorn text-cyan-500"></i> Atualizar Status / Reporte
                           </label>
                           
-                          <div className="flex gap-2 items-start">
-                             <div className="flex-1 space-y-2">
-                                {/* O MENU SELECT */}
-                                <div className="relative">
-                                  <select 
-                                    className="w-full pl-3 pr-8 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-cyan-500 appearance-none shadow-sm cursor-pointer"
-                                    value={currentHookId || ''}
-                                    onChange={(e) => handleHookChange(t.protocolo, e.target.value)}
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <option value="">Selecione uma ação...</option>
-                                    {WEBHOOK_OPTIONS.map(opt => (
-                                      <option key={opt.id} value={opt.id}>{opt.label}</option>
-                                    ))}
-                                  </select>
-                                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                                    <i className="fa-solid fa-chevron-down text-xs"></i>
-                                  </div>
-                                </div>
-
-                                {/* INPUT CONDICIONAL (Aparece se needsInput for true) */}
-                                {currentHookConfig?.needsInput && (
-                                  <div className="animate-in fade-in slide-in-from-top-1">
-                                     <label className="text-[9px] font-bold text-cyan-600 uppercase ml-1 mb-1 block">
-                                       {currentHookConfig.inputLabel}:
-                                     </label>
-                                     <input 
-                                        type={currentHookConfig.inputType || 'text'}
-                                        className="w-full px-3 py-2 bg-cyan-50 border border-cyan-200 rounded-lg text-xs font-bold text-cyan-800 outline-none focus:ring-2 focus:ring-cyan-500/20"
-                                        value={hookInputVal[t.protocolo] || ''}
-                                        onChange={(e) => setHookInputVal(prev => ({ ...prev, [t.protocolo]: e.target.value }))}
-                                        onClick={(e) => e.stopPropagation()}
-                                        autoFocus
-                                     />
-                                  </div>
-                                )}
+                          <div className="space-y-3">
+                             {/* A. SELETOR DE AÇÃO */}
+                             <div className="relative">
+                               <select 
+                                 className="w-full pl-3 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-cyan-500 appearance-none cursor-pointer hover:bg-slate-100 transition-colors"
+                                 value={currentHookId || ''}
+                                 onChange={(e) => handleHookChange(t.protocolo, e.target.value)}
+                               >
+                                 <option value="">Selecione uma ação...</option>
+                                 {WEBHOOK_OPTIONS.map(opt => (
+                                   <option key={opt.id} value={opt.id}>{opt.label}</option>
+                                 ))}
+                                 <option value="CUSTOM">💬 Mensagem Livre</option>
+                               </select>
+                               <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                 <i className="fa-solid fa-chevron-down text-xs"></i>
+                               </div>
                              </div>
 
-                             {/* BOTÃO DE ENVIAR (Seta) */}
+                             {/* B. INPUT ESPECÍFICO (Se necessário) */}
+                             {currentHookConfig?.needsInput && (
+                               <div className="animate-in fade-in slide-in-from-top-1">
+                                  <label className="text-[9px] font-bold text-cyan-600 uppercase ml-1 mb-1 block">
+                                    {currentHookConfig.inputLabel}:
+                                  </label>
+                                  <input 
+                                     type={currentHookConfig.inputType || 'text'}
+                                     className="w-full px-3 py-2 bg-cyan-50 border border-cyan-200 rounded-lg text-xs font-bold text-cyan-800 outline-none focus:ring-2 focus:ring-cyan-500/20"
+                                     value={hookInputVal[t.protocolo] || ''}
+                                     onChange={(e) => setHookInputVal(prev => ({ ...prev, [t.protocolo]: e.target.value }))}
+                                  />
+                               </div>
+                             )}
+
+                             {/* C. CAMPO DE OBSERVAÇÃO (Opcional, sempre visível se uma ação for selecionada) */}
+                             {currentHookId && (
+                               <div className="animate-in fade-in slide-in-from-top-1">
+                                 <input 
+                                   type="text" 
+                                   placeholder={currentHookId === 'CUSTOM' ? "Escreva sua mensagem aqui..." : "Observação opcional..."}
+                                   value={obsVal[t.protocolo] || ''}
+                                   onChange={(e) => setObsVal(prev => ({ ...prev, [t.protocolo]: e.target.value }))}
+                                   className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-xs text-slate-700 focus:border-cyan-500 outline-none"
+                                 />
+                               </div>
+                             )}
+
+                             {/* D. BOTÃO DE AÇÃO PRINCIPAL (Substitui o Encerrar) */}
                              <button
-                               onClick={(e) => { e.stopPropagation(); executeWebhook(t.protocolo); }}
+                               onClick={() => executeWebhook(t.protocolo)}
                                disabled={!currentHookId}
-                               className="h-[38px] w-[38px] bg-slate-800 text-white rounded-xl flex items-center justify-center hover:bg-cyan-600 disabled:opacity-50 disabled:bg-slate-300 shadow-md transition-all mt-px"
-                               title="Enviar Status"
+                               className={`w-full py-3.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-md
+                                 ${!currentHookId 
+                                   ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                                   : isFinalizing 
+                                     ? 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/30' 
+                                     : 'bg-slate-800 text-white hover:bg-slate-900 shadow-slate-800/30'
+                                 }`}
                              >
-                               <i className="fa-solid fa-paper-plane text-xs"></i>
+                               {isFinalizing ? (
+                                 <> <i className="fa-solid fa-lock"></i> Encerrar e Reportar </>
+                               ) : (
+                                 <> <i className="fa-solid fa-paper-plane"></i> Enviar Atualização </>
+                               )}
                              </button>
                           </div>
                        </div>
                      )}
 
-                     {/* 3. MENSAGEM LIVRE (CHAT) */}
-                     {onWebhook && (
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-wider">Mensagem Livre</label>
-                          <div className="flex gap-2">
-                            <input 
-                              type="text" 
-                              placeholder="Escrever obs..."
-                              value={customMessages[t.protocolo] || ''}
-                              onChange={(e) => setCustomMessages(prev => ({ ...prev, [t.protocolo]: e.target.value }))}
-                              onClick={(e) => e.stopPropagation()}
-                              className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-700 focus:border-cyan-500 outline-none shadow-sm"
-                            />
-                            <button
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                onWebhook(t.protocolo, 'CUSTOM', customMessages[t.protocolo]); 
-                                setCustomMessages(prev => ({ ...prev, [t.protocolo]: '' })); 
-                              }}
-                              disabled={!customMessages[t.protocolo]}
-                              className="h-[38px] w-[38px] bg-white border border-slate-200 text-slate-400 rounded-xl hover:text-cyan-600 hover:border-cyan-300 disabled:opacity-50 flex items-center justify-center transition-all shadow-sm"
-                            >
-                              <i className="fa-regular fa-comment-dots"></i>
-                            </button>
-                          </div>
-                        </div>
-                     )}
-
-                     <button onClick={(e) => { e.stopPropagation(); onQuickEdit?.(t.protocolo, 'fechamento'); }} className="w-full py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-xs font-bold hover:bg-red-500 hover:text-white hover:shadow-md transition-all flex items-center justify-center gap-2 mt-2">
-                        <i className="fa-solid fa-lock"></i> Encerrar Atendimento
-                     </button>
                   </div>
                 )}
               </div>
