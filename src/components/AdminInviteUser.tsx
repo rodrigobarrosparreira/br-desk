@@ -1,10 +1,31 @@
-import React, { useState } from 'react';
-import { supabase } from '../services/supabaseClient'; // Ajuste o caminho se necessário
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../services/supabaseClient';
+
+interface AppRole {
+  id: string;
+  name: string;
+}
 
 export const AdminInviteUser = () => {
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('assistencia');
+  const [selectedRole, setSelectedRole] = useState('user_standard'); // Valor padrão
+  const [availableRoles, setAvailableRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // 1. Busca os cargos disponíveis ao carregar
+  useEffect(() => {
+    const fetchRoles = async () => {
+      const { data, error } = await supabase
+        .from('app_roles')
+        .select('id, name')
+        .order('name');
+      
+      if (!error && data) {
+        setAvailableRoles(data);
+      }
+    };
+    fetchRoles();
+  }, []);
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -12,19 +33,38 @@ export const AdminInviteUser = () => {
     setLoading(true);
 
     try {
+      // Lógica para definir o que salvar na Whitelist
+      // Se for admin, salvamos 'admin'. 
+      // Se for cargo personalizado, salvamos o ID do cargo (que é um UUID)
+      // Se for padrão, salvamos 'user'
+      
+      let roleToSave = 'user'; // Padrão
+      
+      if (selectedRole === 'admin') {
+        roleToSave = 'admin';
+      } else if (selectedRole === 'user_standard') {
+        roleToSave = 'user';
+      } else {
+        // Se for um UUID (cargo personalizado), salvamos ele
+        // IMPORTANTE: Seu AuthContext precisará saber lidar com isso no primeiro login
+        roleToSave = selectedRole; 
+      }
+
       // Insere na tabela de permissões (Whitelist)
+      // Nota: Estamos usando a coluna 'role' para guardar ou o cargo fixo ou o ID do cargo personalizado.
       const { error } = await supabase
         .from('user_permissions')
-        .insert({ 
+        .upsert({ 
           email: email.toLowerCase().trim(), 
-          role: role, 
+          role: roleToSave, 
           active: true 
-        });
+        }, { onConflict: 'email' });
 
       if (error) throw error;
 
-      alert(`✅ Sucesso! O email ${email} foi liberado.`);
-      setEmail(''); // Limpa o campo
+      alert(`✅ Sucesso! O acesso para ${email} foi pré-aprovado.`);
+      setEmail('');
+      setSelectedRole('user_standard'); // Reseta
     } catch (error: any) {
       console.error(error);
       alert("Erro ao adicionar: " + (error.message || "Verifique se você é Admin."));
@@ -34,7 +74,7 @@ export const AdminInviteUser = () => {
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 max-w-md">
+    <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 max-w-md w-full">
       <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
         <i className="fa-solid fa-user-plus text-cyan-600"></i> Liberar Novo Acesso
       </h3>
@@ -53,16 +93,28 @@ export const AdminInviteUser = () => {
         </div>
 
         <div>
-          <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Cargo / Permissão</label>
+          <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Definir Cargo Inicial</label>
           <div className="relative">
             <select 
-              value={role}
-              onChange={e => setRole(e.target.value)}
-              className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:border-cyan-500 bg-white appearance-none cursor-pointer"
+              value={selectedRole}
+              onChange={e => setSelectedRole(e.target.value)}
+              className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:border-cyan-500 bg-white appearance-none cursor-pointer text-slate-700 font-medium"
             >
-              <option value="assistencia">Operador (Assistência)</option>
-              <option value="financeiro">Financeiro</option>
-              <option value="admin">Administrador Geral</option>
+              <optgroup label="Acesso Básico">
+                <option value="user_standard">👤 Usuário Padrão (Sem cargo)</option>
+              </optgroup>
+
+              {/* AQUI ESTÃO OS SEUS PERFIS CRIADOS DINAMICAMENTE */}
+              <optgroup label="Cargos Personalizados">
+                {availableRoles.map(role => (
+                  <option key={role.id} value={role.id}>💼 {role.name}</option>
+                ))}
+                {availableRoles.length === 0 && <option disabled>Nenhum perfil criado ainda</option>}
+              </optgroup>
+
+              <optgroup label="Acesso Total">
+                <option value="admin">🚀 Administrador Geral</option>
+              </optgroup>
             </select>
             <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
           </div>
