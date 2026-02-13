@@ -16,21 +16,29 @@ interface MapModalProps {
 }
 
 const WEBHOOK_OPTIONS = [
-  { id: 'PRESTADOR_CAMINHO', label: '🚀 Prestador a Caminho', needsInput: false },
-  { id: 'NO_LOCAL', label: '📍 Prestador no Local', needsInput: false },
   { 
-    id: 'SAIDA_BASE', 
-    label: '🕒 Informar Saída da Base', 
+    id: 'PRESTADOR_CAMINHO', 
+    label: '🚀 Prestador a Caminho', 
+    needsInput: true, // Mudamos para true para pedir a hora
+    inputType: 'time', 
+    inputLabel: 'Hora de Saída',
+    sheetField: 'hora_envio' // <--- A MÁGICA: Linka com o campo da planilha
+  },
+  { 
+    id: 'NO_LOCAL', 
+    label: '📍 Prestador no Local', 
     needsInput: true, 
     inputType: 'time', 
-    inputLabel: 'Horário de Saída' 
+    inputLabel: 'Hora de Chegada',
+    sheetField: 'hora_chegada' // <--- Linka com o campo da planilha
   },
   { 
     id: 'PREVISAO', 
     label: '⏳ Atualizar Previsão', 
     needsInput: true, 
     inputType: 'time', 
-    inputLabel: 'Nova Previsão de Chegada' 
+    inputLabel: 'Nova Previsão' 
+    // Não tem sheetField, então só manda mensagem no chat
   },
   { id: 'FINALIZADO', label: '✅ Finalizar Atendimento', needsInput: false },
 ];
@@ -721,7 +729,7 @@ interface TicketListProps {
   onRefresh: () => void;
   currentAttendant: string;
   onQuickEdit?: (protocolo: string, action: 'abertura' | 'fechamento') => void;
-  onWebhook?: (protocolo: string, type: string, extraData?: string) => void;
+  onWebhook?: (protocolo: string, type: string, extraData?: string, fieldUpdate?: { key: string, value: string }) => void;
 }
 
 export const TicketList: React.FC<TicketListProps> = ({ 
@@ -755,29 +763,30 @@ export const TicketList: React.FC<TicketListProps> = ({
     const specificData = hookInputVal[protocolo] || '';
     const observation = obsVal[protocolo] || '';
 
-    // Validação do dado obrigatório (ex: horário)
     if (config?.needsInput && !specificData) {
       alert(`Por favor, preencha o campo: ${config.inputLabel}`);
       return;
     }
 
-    // Validação para "Mensagem Livre" (CUSTOM) -> Obs é obrigatória
     if (hookId === 'CUSTOM' && !observation) {
         alert("Por favor, escreva uma mensagem.");
         return;
     }
 
-    // Monta a mensagem final combinando Dado Específico + Observação
+    // Monta a mensagem final do chat
     let finalData = specificData;
     if (observation) {
-        // Se já tem dado específico, quebra linha. Se não, é só a obs.
         finalData = finalData ? `${finalData}\n📝 Obs: ${observation}` : observation;
     }
 
-    // Envia
-    onWebhook?.(protocolo, hookId, finalData);
+    // Verifica se esse webhook precisa atualizar a planilha
+    const fieldUpdate = (config?.sheetField && specificData) 
+        ? { key: config.sheetField, value: specificData } 
+        : undefined;
 
-    // Feedback visual (opcional: limpar campos após envio)
+    // Envia tudo para o Dashboard processar
+    onWebhook?.(protocolo, hookId, finalData, fieldUpdate);
+
     setObsVal(prev => ({ ...prev, [protocolo]: '' }));
     setHookInputVal(prev => ({ ...prev, [protocolo]: '' }));
   };

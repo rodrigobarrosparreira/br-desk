@@ -117,6 +117,12 @@ export const DEPARTMENTS: Department[] = [
             { id: 'modelo', label: 'Modelo' },
             { id: 'cor', label: 'Cor' },
             { id: 'solicitante', label: 'Solicitante' },
+            { id: 'solic_associado', label: 'É Associado?', type: 'select', options:[
+              {value: 'sim', label: 'Sim' },
+              {value: 'nao', label: 'Não' }
+            ]},
+            { id: 'vinculo', label: 'Vínculo', showIf: {field: 'solic_associado', value: 'nao'} },
+            { id: 'associado', label: 'Associado', showIf: {field: 'solic_associado', value: 'nao'} },
             { id: 'telefone', label: 'Telefone', type: 'tel', placeholder: '(00) 00000-0000' },
             { id: 'fator-gerador', label: 'Fator Gerador', type: 'select', options:[
               {value: 'pane-eletrica', label: 'Pane Elétrica' },

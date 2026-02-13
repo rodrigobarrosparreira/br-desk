@@ -10,9 +10,9 @@ import {
 import { checkPermission } from '../utils/permissions';
 import { formatDateTime } from '../utils/Formatters';
 
-const MAPS_API_KEY = "AIzaSyA0rzO01A48M_HN1G6tr1hnZdB-QYtaZkg";
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzPqUPLLfvTq2RNxcPzP3k4qtUDFgVX0YUDggg2Rq_F3CkhAvSiGJkLqHmqmoqAfvokyQ/exec";
-const API_TOKEN = "brclube-2026"; 
+const MAPS_API_KEY = import.meta.env.VITE_MAPS_API_KEY;
+const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL;
+const API_TOKEN = import.meta.env.VITE_API_TOKEN;
 
 const WEBHOOKS = {
   PADRAO: "https://chat.googleapis.com/v1/spaces/AAQA_9VXbIs/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=xYp-47r0nPVdhG8o2MDBdnnhfDDpz-XV78N0OP91oyw",
@@ -58,9 +58,35 @@ const Dashboard: React.FC = () => {
   const handleSendWebhook = async (
     protocolo: string, 
     tipo: string, 
-    dadosExtras?: string // Agora recebemos o dado variável (hora, texto, etc)
+    dadosExtras?: string,
+    fieldUpdate?: { key: string, value: string } // <--- Recebe o campo da planilha
   ) => {
     
+    // =========================================
+    // 1. SALVAR NA PLANILHA (SE HOUVER DADO)
+    // =========================================
+    if (fieldUpdate) {
+      try {
+        await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ 
+            action: 'salvar_ou_atualizar', 
+            protocolo: protocolo,
+            [fieldUpdate.key]: fieldUpdate.value, // Ex: hora_envio: "14:30"
+            token_acesso: API_TOKEN
+          })
+        });
+        console.log(`Planilha atualizada silenciosamente: ${fieldUpdate.key} = ${fieldUpdate.value}`);
+      } catch (e) {
+        console.error("Aviso: Erro ao salvar dado na planilha.", e);
+        // Não bloqueamos o resto do código para garantir que a mensagem do grupo seja enviada
+      }
+    }
+
+    // =========================================
+    // 2. ENVIAR PARA O GOOGLE CHAT
+    // =========================================
     const url = WEBHOOKS.PADRAO; 
     if (!url) return;
 
@@ -68,15 +94,12 @@ const Dashboard: React.FC = () => {
 
     switch (tipo) {
       case 'PRESTADOR_CAMINHO':
-        mensagemFinal = `🚀 *Prestador A Caminho*\nProtocolo: ${protocolo}\nStatus: Deslocamento iniciado`;
+        mensagemFinal = `🚀 *Prestador A Caminho*\nProtocolo: ${protocolo}\nHorário de Saída: ${dadosExtras}`;
         break;
       case 'NO_LOCAL':
-        mensagemFinal = `📍 *Prestador No Local*\nProtocolo: ${protocolo}\nStatus: Chegou ao local`;
+        mensagemFinal = `📍 *Prestador No Local*\nProtocolo: ${protocolo}\nHorário de Chegada: ${dadosExtras}`;
         break;
-      case 'SAIDA_BASE': // Exemplo com Horário
-        mensagemFinal = `🕒 *Saída da Base*\nProtocolo: ${protocolo}\nHorário de Saída: ${dadosExtras}`;
-        break;
-      case 'PREVISAO': // Exemplo com Previsão
+      case 'PREVISAO': 
         mensagemFinal = `⏳ *Previsão Atualizada*\nProtocolo: ${protocolo}\nNova Previsão: ${dadosExtras}`;
         break;
       case 'FINALIZADO':
@@ -95,7 +118,7 @@ const Dashboard: React.FC = () => {
         headers: { 'Content-Type': 'application/json; charset=UTF-8' },
         body: JSON.stringify({ text: mensagemFinal })
       });
-      alert(`Status enviado!`);
+      alert(`Status enviado e atualizado com sucesso!`);
     } catch (e) {
       alert("Erro ao enviar webhook.");
     }
@@ -373,6 +396,7 @@ const Dashboard: React.FC = () => {
     try {
       const response = await fetch(GOOGLE_SCRIPT_URL, {
         method: 'POST', 
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({
           action: 'buscar_prestadores',
           endereco: enderecoBusca,
@@ -590,22 +614,24 @@ const Dashboard: React.FC = () => {
               onReset={() => setStatus({ ...status, success: null })} 
             />
           ) : (
-            // LAYOUT DE 3 COLUNAS
+            // LAYOUT DINÂMICO DE COLUNAS
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
               
-              {/* 1. LISTA DE ATENDIMENTOS (CRM) */}
-              <div className="xl:col-span-3 h-[600px] xl:h-auto flex flex-col">
-                <TicketList 
-                   tickets={tickets} 
-                   onSelectTicket={handleEditTicket} 
-                   isLoading={isLoadingTickets} 
-                   onRefresh={loadTickets} 
-                   currentAttendant={profile?.full_name || profile?.email || 'Usuário'}
-                />
-              </div>
+              {/* 1. LISTA DE ATENDIMENTOS (CRM) - SÓ APARECE SE FOR ABERTURA/FECHAMENTO */}
+              {isFormularioIntegrado && (
+                <div className="xl:col-span-3 h-[600px] xl:h-auto flex flex-col">
+                  <TicketList 
+                     tickets={tickets} 
+                     onSelectTicket={handleEditTicket} 
+                     isLoading={isLoadingTickets} 
+                     onRefresh={loadTickets} 
+                     currentAttendant={profile?.full_name || profile?.email || 'Usuário'}
+                  />
+                </div>
+              )}
 
-              {/* 2. FORMULÁRIO CENTRAL */}
-              <div className="xl:col-span-6">
+              {/* 2. FORMULÁRIO CENTRAL - EXPANDE SE A LISTA LATERAL NÃO ESTIVER LÁ */}
+              <div className={isFormularioIntegrado ? "xl:col-span-6" : "xl:col-span-8"}>
                 <FormCard title={activeTemplate ? activeTemplate.title : currentSub?.name || ''} icon={isTerm ? 'fa-file-signature' : 'fa-pen-to-square'}>
                     <form onSubmit={(e) => e.preventDefault()} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {(activeTemplate ? activeTemplate.fields : (currentSub?.fields || [])).map(field => renderField(field))}
@@ -646,8 +672,8 @@ const Dashboard: React.FC = () => {
                 </FormCard>
               </div>
 
-              {/* 3. PREVIEW E BUSCA (DIREITA) */}
-              <div className="xl:col-span-3 space-y-6">
+              {/* 3. PREVIEW E BUSCA (DIREITA) - EXPANDE UM POUCO SE A LISTA SUMIR */}
+              <div className={isFormularioIntegrado ? "xl:col-span-3" : "xl:col-span-4"}>
                 <FormMirror 
                   data={formData} 
                   title={activeTemplate ? activeTemplate.title : currentSub?.name || ''} 
@@ -659,7 +685,6 @@ const Dashboard: React.FC = () => {
                 
                 {activeSubmodule === 'abertura_assistencia' && (
                    <ProviderSearch 
-                      // Esta função agora aceita argumentos do widget OU usa o formData
                       onSearch={(addr, type) => handleSearchProviders(addr, type)} 
                       isSearching={isSearching}
                       results={providerResults}
