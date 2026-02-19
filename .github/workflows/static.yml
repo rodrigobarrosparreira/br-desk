@@ -29,6 +29,9 @@ jobs:
       # AQUI ESTÁ O SEGREDO: Injetamos as variáveis antes de construir
       - name: Build
         env:
+          VITE_GOOGLE_SCRIPT_URL: ${{ secrets.VITE_GOOGLE_SCRIPT_URL }}
+          VITE_API_TOKEN: ${{ secrets.VITE_API_TOKEN }}
+          VITE_MAPS_API_KEY: ${{ secrets.VITE_MAPS_API_KEY }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
