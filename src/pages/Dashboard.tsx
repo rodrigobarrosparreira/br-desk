@@ -6,11 +6,12 @@ import { DEPARTMENTS } from '../constants';
 import {
   Input, Select, TextArea, FormCard, SuccessMessage, FormMirror,
   RepeaterField, ProviderSearch, PrestadorResultado, TicketList, Ticket,
-  UploadModal // <--- Widget importado
+  UploadModal
 } from '../components/FormComponents';
 import { checkPermission } from '../utils/permissions';
 import { formatDateTime } from '../utils/Formatters';
-import {QuickMessagesWidget} from '../components/QuickMessagesWidget';
+import { ProtocolWidget, QuickMessagesWidget } from '../components/QuickMessagesWidget';
+
 const MAPS_API_KEY = import.meta.env.VITE_MAPS_API_KEY;
 const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL;
 const API_TOKEN = import.meta.env.VITE_API_TOKEN;
@@ -506,9 +507,10 @@ const Dashboard: React.FC = () => {
       {activeDept === 'home' ? (
         renderHome()
       ) : !activeSubmodule ? (
-        <div className="space-y-8 animate-in fade-in duration-700 h-[calc(100vh-140px)] flex flex-col">
-          {/* CABEÇALHO DO DEPARTAMENTO */}
-          <div className="flex-none flex items-center justify-between pb-4">
+        
+        // --- TELA INICIAL DO DEPARTAMENTO (LAYOUT LIMPO) ---
+        <div className="space-y-8 animate-in fade-in duration-700">
+          <div className="flex items-center justify-between pb-4">
             <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
               <i className={`fa-solid ${currentDeptObj?.icon} text-cyan-500`}></i>
               {currentDeptObj?.name}
@@ -521,104 +523,73 @@ const Dashboard: React.FC = () => {
             </button>
           </div>
 
-          {/* ========================================================================================= */}
-          {/* 📍 ÁREA CENTRAL: BOTÕES E LISTA DE TICKETS                                                  */}
-          {/* ========================================================================================= */}
-          
-          <div className="flex-1 overflow-y-auto pr-2 pb-6">
+          {activeDept === 'assistance' ? (
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+               {/* COLUNA 1: BOTÕES DE AÇÃO (8 Colunas) */}
+               <div className="xl:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {currentDeptObj?.submodules.map((sub) => (
+                  <button
+                    key={sub.id}
+                    onClick={() => handleNavigate(activeDept, sub.id)}
+                    className="bg-white p-6 rounded-2xl border border-cyan-50 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all text-left group relative overflow-hidden"
+                  >
+                    <div className="w-10 h-10 bg-cyan-500 text-white rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-md">
+                      <i className={`fa-solid ${sub.isTerm ? 'fa-file-signature' : currentDeptObj.icon}`}></i>
+                    </div>
+                    <h3 className="text-base font-black text-slate-800 mb-1">{sub.name}</h3>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      {sub.isTerm ? 'Emite documento PDF.' : 'Acessar formulário.'}
+                    </p>
+                  </button>
+                ))}
+               </div>
 
-            {/* CASO ESPECIAL: ASSISTÊNCIA (TEM 2 COLUNAS: Botões | Lista CRM) */}
-            {activeDept === 'assistance' ? (
-              <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start h-full">
-                 
-                 {/* COLUNA 1: BOTÕES DE AÇÃO (8 Colunas) */}
-                 <div className="xl:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {currentDeptObj?.submodules.map((sub) => (
-                    <button
-                      key={sub.id}
-                      onClick={() => handleNavigate(activeDept, sub.id)}
-                      className="bg-white p-6 rounded-2xl border border-cyan-50 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all text-left group relative overflow-hidden"
-                    >
-                      <div className="w-10 h-10 bg-cyan-500 text-white rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-md">
-                        <i className={`fa-solid ${sub.isTerm ? 'fa-file-signature' : currentDeptObj.icon}`}></i>
-                      </div>
-                      <h3 className="text-base font-black text-slate-800 mb-1">{sub.name}</h3>
-                      <p className="text-[11px] text-slate-500 font-medium">
-                        {sub.isTerm ? 'Emite documento PDF.' : 'Acessar formulário.'}
-                      </p>
-                    </button>
-                  ))}
+               {/* COLUNA 2: LISTA DE ATENDIMENTOS (4 Colunas) */}
+               <div className="xl:col-span-4 flex flex-col space-y-4">
+                 <div className="bg-white p-3 rounded-xl border border-cyan-100 shadow-sm">
+                    <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                      <i className="fa-solid fa-list-ul text-cyan-500"></i>
+                      Em Aberto
+                    </h3>
                  </div>
-
-                 {/* COLUNA 2: LISTA DE ATENDIMENTOS (4 Colunas) */}
-                 <div className="xl:col-span-4 flex flex-col h-full space-y-4">
-                   <div className="bg-white p-3 rounded-xl border border-cyan-100 shadow-sm">
-                      <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                        <i className="fa-solid fa-list-ul text-cyan-500"></i>
-                        Em Aberto
-                      </h3>
-                   </div>
-                   <div className="flex-1 overflow-hidden min-h-[300px]">
-                      <TicketList
-                        tickets={tickets}
-                        onSelectTicket={handleEditTicket}
-                        isLoading={isLoadingTickets}
-                        onRefresh={loadTickets}
-                        currentAttendant={profile?.full_name || profile?.email || 'Usuário'}
-                        onQuickEdit={handleQuickAction}
-                        onWebhook={handleSendWebhook}
-                      />
-                   </div>
+                 <div className="flex-1 min-h-[400px]">
+                    <TicketList
+                      tickets={tickets}
+                      onSelectTicket={handleEditTicket}
+                      isLoading={isLoadingTickets}
+                      onRefresh={loadTickets}
+                      currentAttendant={profile?.full_name || profile?.email || 'Usuário'}
+                      onQuickEdit={handleQuickAction}
+                      onWebhook={handleSendWebhook}
+                    />
                  </div>
-
-              </div>
-            ) : (
-              // CASO PADRÃO: OUTROS DEPARTAMENTOS (GRID DE BOTÕES MAIOR)
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {currentDeptObj?.submodules.map((sub) => (
-                    <button
-                      key={sub.id}
-                      onClick={() => handleNavigate(activeDept, sub.id)}
-                      className="bg-white p-8 rounded-2xl border border-cyan-50 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all text-left group relative overflow-hidden"
-                    >
-                      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <i className={`fa-solid ${sub.isTerm ? 'fa-file-signature' : currentDeptObj.icon} text-6xl text-cyan-600`}></i>
-                      </div>
-                      <div className="w-12 h-12 bg-cyan-500 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-md shadow-cyan-200">
-                        <i className={`fa-solid ${sub.isTerm ? 'fa-file-signature' : currentDeptObj.icon}`}></i>
-                      </div>
-                      <h3 className="text-lg font-black text-slate-800 mb-1 relative z-10">{sub.name}</h3>
-                      <p className="text-xs text-slate-500 font-medium relative z-10">
-                        {sub.isTerm ? 'Emite documento PDF formal.' : 'Gera mensagem formatada para WhatsApp.'}
-                      </p>
-                    </button>
-                  ))}
-              </div>
-            )}
-          </div>
-
-          {/* ========================================================================================= */}
-          {/* 📍 ÁREA INFERIOR: WIDGET DE MENSAGENS (FIXO NO RODAPÉ)                                     */}
-          {/* ========================================================================================= */}
-          
-          <div className="flex-none h-72 w-full mt-4">
-               <QuickMessagesWidget 
-                 currentDepartment={activeDept} 
-                 userRole={profile?.role || 'user'}
-                 apiUrl={GOOGLE_SCRIPT_URL}
-                 apiToken={API_TOKEN}
-               />
-          </div>
-
-          <UploadModal
-            isOpen={isUploadModalOpen}
-            onClose={() => setIsUploadModalOpen(false)}
-            tickets={tickets || []}
-            onUpload={(prot, files) => handleFileUpload(prot, files)}
-            isUploading={isUploading}
-          />
+               </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {currentDeptObj?.submodules.map((sub) => (
+                  <button
+                    key={sub.id}
+                    onClick={() => handleNavigate(activeDept, sub.id)}
+                    className="bg-white p-8 rounded-2xl border border-cyan-50 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all text-left group relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                      <i className={`fa-solid ${sub.isTerm ? 'fa-file-signature' : currentDeptObj.icon} text-6xl text-cyan-600`}></i>
+                    </div>
+                    <div className="w-12 h-12 bg-cyan-500 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-md shadow-cyan-200">
+                      <i className={`fa-solid ${sub.isTerm ? 'fa-file-signature' : currentDeptObj.icon}`}></i>
+                    </div>
+                    <h3 className="text-lg font-black text-slate-800 mb-1 relative z-10">{sub.name}</h3>
+                    <p className="text-xs text-slate-500 font-medium relative z-10">
+                      {sub.isTerm ? 'Emite documento PDF formal.' : 'Gera mensagem formatada para WhatsApp.'}
+                    </p>
+                  </button>
+                ))}
+            </div>
+          )}
         </div>
       ) : (
+        // --- TELA DE FORMULÁRIO (Submódulo) ---
         <div className="space-y-8 animate-in fade-in duration-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-5">
@@ -646,13 +617,10 @@ const Dashboard: React.FC = () => {
               onReset={() => setStatus({ ...status, success: null })}
             />
           ) : (
-            // LAYOUT DO FORMULÁRIO (INTERNO)
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-
-              {/* 1. LISTA DE ATENDIMENTOS (CRM) - SÓ APARECE SE FOR ABERTURA/FECHAMENTO */}
               {isFormularioIntegrado && (
                 <div className="xl:col-span-3 h-[600px] xl:h-auto flex flex-col">
-                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center mb-4">
                     <h3 className="font-bold text-slate-700 text-sm">
                       <i className="fa-solid fa-list-check mr-2 text-blue-500"></i>
                       CRM
@@ -676,8 +644,20 @@ const Dashboard: React.FC = () => {
                 </div>
               )}
 
-              {/* 2. FORMULÁRIO CENTRAL */}
               <div className={isFormularioIntegrado ? "xl:col-span-6" : "xl:col-span-8"}>
+                {activeSubmodule === 'abertura_assistencia' && (
+                  <div className="flex justify-end mb-4">
+                    <a 
+                      href="https://coloque-o-link-do-sistema-aqui.com.br" // 🔴 COLOQUE SEU LINK AQUI
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors border border-indigo-100 shadow-sm"
+                    >
+                      <i className="fa-solid fa-magnifying-glass-dollar text-sm"></i>
+                      Consultar Adimplência
+                    </a>
+                  </div>
+                )}
                 <FormCard title={activeTemplate ? activeTemplate.title : currentSub?.name || ''} icon={isTerm ? 'fa-file-signature' : 'fa-pen-to-square'}>
                   <form onSubmit={(e) => e.preventDefault()} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {(activeTemplate ? activeTemplate.fields : (currentSub?.fields || [])).map(field => renderField(field))}
@@ -718,7 +698,6 @@ const Dashboard: React.FC = () => {
                 </FormCard>
               </div>
 
-              {/* 3. PREVIEW E BUSCA (DIREITA) */}
               <div className={isFormularioIntegrado ? "xl:col-span-3" : "xl:col-span-4"}>
                 <FormMirror
                   data={formData}
@@ -742,18 +721,36 @@ const Dashboard: React.FC = () => {
                   />
                 )}
               </div>
-
             </div>
           )}
-          <UploadModal
-            isOpen={isUploadModalOpen}
-            onClose={() => setIsUploadModalOpen(false)}
-            tickets={tickets || []}
-            onUpload={(prot, files) => handleFileUpload(prot, files)}
-            isUploading={isUploading}
-          />
         </div>
       )}
+
+      {/* 📍 BARRA DE FERRAMENTAS FLUTUANTE (SÓ NA TELA DO DEPARTAMENTO) */}
+      {activeDept !== 'home' && !activeSubmodule && (
+         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center justify-center gap-3 z-50 bg-white/50 backdrop-blur-md p-1.5 rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-white/60">
+           <QuickMessagesWidget 
+             currentDepartment={activeDept} 
+             userRole={profile?.role || 'user'}
+             apiUrl={GOOGLE_SCRIPT_URL}
+             apiToken={API_TOKEN}
+           />
+           <ProtocolWidget 
+             currentDepartment={activeDept}
+             userRole={profile?.role || 'user'}
+             apiUrl = {GOOGLE_SCRIPT_URL}
+             apiToken = {API_TOKEN}
+           />
+         </div>
+      )}
+
+      <UploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        tickets={tickets || []}
+        onUpload={(prot, files) => handleFileUpload(prot, files)}
+        isUploading={isUploading}
+      />
     </Layout>
   );
 };
