@@ -12,7 +12,7 @@ export interface TemplateField {
   required?: boolean;
   showIf?: {
     field: string;
-    value: string;
+    value: string | string[];
   }
 }
 

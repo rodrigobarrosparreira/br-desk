@@ -793,6 +793,11 @@ export interface Ticket {
   status: string;
   atendente?: string;
   data?: string;
+  agendado?: string;
+  dia_horario_agendado?: string;
+  supervisor?: string;
+  pendencia?: string;
+  justificativa_pendencia?: string;
 }
 
 // ============================================================================
@@ -812,24 +817,17 @@ export const TicketList: React.FC<TicketListProps> = ({
   tickets, onSelectTicket, isLoading, onRefresh, currentAttendant, onQuickEdit, onWebhook 
 }) => {
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
-  
-  // Estado da Ação Selecionada
   const [selectedHook, setSelectedHook] = React.useState<Record<string, string>>({});
-  // Estado do Dado Específico (ex: Horário)
   const [hookInputVal, setHookInputVal] = React.useState<Record<string, string>>({});
-  // Estado da Observação (Agora serve para todos)
   const [obsVal, setObsVal] = React.useState<Record<string, string>>({});
 
-  const toggleExpand = (protocolo: string) => {
-    setExpandedId(expandedId === protocolo ? null : protocolo);
-  };
+  const toggleExpand = (protocolo: string) => { setExpandedId(expandedId === protocolo ? null : protocolo); };
 
   const handleHookChange = (protocolo: string, hookId: string) => {
     setSelectedHook(prev => ({ ...prev, [protocolo]: hookId }));
-    // Limpa inputs ao trocar a ação para evitar confusão
     setHookInputVal(prev => ({ ...prev, [protocolo]: '' }));
-    // setObsVal(prev => ({ ...prev, [protocolo]: '' })); // Opcional: manter ou limpar obs
   };
+
 
   const executeWebhook = (protocolo: string) => {
     const hookId = selectedHook[protocolo];
@@ -867,34 +865,56 @@ export const TicketList: React.FC<TicketListProps> = ({
     setHookInputVal(prev => ({ ...prev, [protocolo]: '' }));
   };
 
+  // 👇 CÁLCULO DE QUANTIDADES 👇
+  const safeTickets = tickets || [];
+  const qtdAgendados = safeTickets.filter(t => t.agendado?.toLowerCase() === 'sim').length;
+  const qtdCorrentes = safeTickets.length - qtdAgendados;
+
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-lg shadow-slate-200/40 overflow-hidden h-full flex flex-col animate-in slide-in-from-left-4 duration-500">
       
-      {/* Cabeçalho do Painel */}
-      <div className="bg-slate-50/80 px-5 py-5 border-b border-slate-100 flex justify-between items-center backdrop-blur-sm">
-        <div>
-          <h4 className="font-extrabold text-slate-700 text-sm uppercase tracking-widest flex items-center gap-2">
-            <i className="fa-solid fa-tower-broadcast text-cyan-600"></i> Central
-          </h4>
-          <p className="text-xs text-slate-400 font-bold mt-0.5">Visão Global</p>
+      {/* Cabeçalho do Painel COM CONTADORES DE AGENDAMENTO */}
+      <div className="bg-slate-50/80 px-5 py-4 border-b border-slate-100 flex flex-col gap-3 backdrop-blur-sm">
+        <div className="flex justify-between items-center">
+          <div>
+            <h4 className="font-extrabold text-slate-700 text-sm uppercase tracking-widest flex items-center gap-2">
+              <i className="fa-solid fa-tower-broadcast text-cyan-600"></i> Central
+            </h4>
+            <p className="text-xs text-slate-400 font-bold mt-0.5">Visão Global</p>
+          </div>
+          <button onClick={onRefresh} disabled={isLoading} className="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-cyan-600 hover:border-cyan-300 hover:shadow-sm transition-all flex items-center justify-center">
+            <i className={`fa-solid fa-rotate ${isLoading ? 'fa-spin' : ''}`}></i>
+          </button>
         </div>
-        <button onClick={onRefresh} disabled={isLoading} className="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-cyan-600 hover:border-cyan-300 hover:shadow-sm transition-all flex items-center justify-center">
-          <i className={`fa-solid fa-rotate ${isLoading ? 'fa-spin' : ''}`}></i>
-        </button>
+
+        {/* BARRINHA DE RESUMO: CORRENTES X AGENDADOS */}
+        <div className="flex gap-2">
+          <div className="flex-1 bg-blue-50/80 text-blue-700 text-[10px] font-bold px-2 py-1.5 rounded-lg border border-blue-100 flex justify-between items-center shadow-sm">
+            <span className="flex items-center gap-1"><i className="fa-solid fa-bolt text-blue-500"></i> Imediatos</span>
+            <span className="bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded">{qtdCorrentes}</span>
+          </div>
+          <div className="flex-1 bg-purple-50/80 text-purple-700 text-[10px] font-bold px-2 py-1.5 rounded-lg border border-purple-100 flex justify-between items-center shadow-sm">
+            <span className="flex items-center gap-1"><i className="fa-regular fa-clock text-purple-500"></i> Agendados</span>
+            <span className="bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded">{qtdAgendados}</span>
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3 bg-slate-50/30">
-        {tickets.length === 0 && !isLoading ? (
+        {safeTickets.length === 0 && !isLoading ? (
           <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-3 opacity-60">
             <i className="fa-regular fa-folder-open text-4xl"></i>
             <span className="text-sm font-medium italic">Nenhum chamado pendente.</span>
           </div>
         ) : (
-          tickets.map((t) => {
+          safeTickets.map((t) => {
             const isExpanded = expandedId === t.protocolo;
             const currentHookId = selectedHook[t.protocolo];
             const currentHookConfig = WEBHOOK_OPTIONS.find(w => w.id === currentHookId);
             const isFinalizing = currentHookId === 'FINALIZADO';
+            
+            // Verifica se é agendado (A API precisa retornar 'sim' neste campo)
+            const isAgendado = t.agendado?.toLowerCase() === 'sim';
             
             return (
               <div key={t.protocolo} className={`group relative bg-white rounded-xl border transition-all cursor-pointer overflow-hidden ${isExpanded ? 'border-cyan-400 shadow-md ring-1 ring-cyan-100' : 'border-slate-100 hover:border-cyan-300 shadow-sm'}`}>
@@ -909,19 +929,54 @@ export const TicketList: React.FC<TicketListProps> = ({
                          <span className="font-bold">{t.atendente ? t.atendente.split(' ')[0] : 'Sem dono'}</span>
                       </div>
                     </div>
-                    <i className={`fa-solid fa-chevron-down text-slate-300 text-sm transition-transform duration-300 ${isExpanded ? 'rotate-180 text-cyan-500' : ''}`}></i>
+                    
+                    {/* 👇 ETIQUETAS DE CORRENTE / AGENDADO E SETA 👇 */}
+                    <div className="flex flex-col items-end gap-1.5">
+                      {isAgendado ? (
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span className="bg-purple-100 text-purple-700 border border-purple-200 text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                            <i className="fa-regular fa-clock"></i> Agendado
+                          </span>
+                          {/* Se a planilha enviar a data, mostra abaixo da etiqueta */}
+                          {t.dia_horario_agendado && (
+                            <span className="text-[9px] font-bold text-slate-400">
+                              {t.dia_horario_agendado.replace('T', ' ')}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="bg-blue-100 text-blue-700 border border-blue-200 text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                          <i className="fa-solid fa-bolt"></i> Imediato
+                        </span>
+                      )}
+                      
+                      {/* Seta de expansão que já estava no seu código */}
+                      <i className={`fa-solid fa-chevron-down text-slate-300 text-sm transition-transform duration-300 ${isExpanded ? 'rotate-180 text-cyan-500' : ''}`}></i>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 mt-2">
-                     <span className={`text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-wider ${
+                  
+                  <div className="flex items-center flex-wrap gap-2 mt-2">
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-wider ${
                         t.status === 'ABERTO' ? 'bg-green-50 text-green-600 border-green-100' : 
                         t.status === 'FECHADO' ? 'bg-slate-100 text-slate-500 border-slate-200' :
-                        'bg-amber-50 text-amber-600 border-amber-100'
+                        'bg-slate-50 text-slate-600 border-slate-200'
                       }`}>
                         {t.status}
                       </span>
                       <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded border border-slate-200 font-bold">
                         {t.protocolo}
                       </span>
+                      
+                      {/* 👇 NOVA ETIQUETA DE PENDÊNCIA (Visível minimizada) 👇 */}
+                      {t.pendencia === 'sim' && (
+                        <span 
+                          title={t.justificativa_pendencia} // Isso faz o texto aparecer no hover do mouse!
+                          className="text-[10px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2 py-1 rounded uppercase tracking-wider flex items-center gap-1 shadow-sm cursor-help"
+                        >
+                          <i className="fa-solid fa-triangle-exclamation"></i>
+                          {' '}Pendência
+                        </span>
+                      )}
                   </div>
                 </div>
 
@@ -929,6 +984,24 @@ export const TicketList: React.FC<TicketListProps> = ({
                 {isExpanded && (
                   <div className="bg-slate-50 border-t border-slate-100 p-4 animate-in slide-in-from-top-2 duration-200 space-y-5" onClick={(e) => e.stopPropagation()}>
                      
+                    {/* 👇 NOVO ALERTA DE PENDÊNCIA 👇 */}
+                     {t.pendencia === 'sim' && t.justificativa_pendencia && (
+                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 shadow-sm animate-in fade-in">
+                         <div className="flex items-start gap-2.5 text-amber-800">
+                           <i className="fa-solid fa-triangle-exclamation mt-0.5 text-amber-600"></i>
+                           <div>
+                             <span className="text-[10px] font-bold uppercase tracking-wider block mb-0.5 text-amber-600">
+                               Atendimento com Pendência
+                             </span>
+                             <span className="text-xs font-medium text-amber-900">
+                               {t.justificativa_pendencia}
+                             </span>
+                           </div>
+                         </div>
+                       </div>
+                     )}
+                     {/* 👆 FIM DO ALERTA 👆 */}
+
                      {/* 1. BOTÕES DE EDITAR FORMULÁRIO */}
                      <div>
                         <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-wider">Editar Dados</label>

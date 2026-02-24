@@ -113,7 +113,13 @@ export const DEPARTMENTS: Department[] = [
         parentId: 'assistance',
         fields: [
             { id: 'protocolo', label: 'Protocolo' },
-            { id: 'data-hora', label: 'Data e Hora', type: 'datetime-local' },
+            { id: 'agendado', label: 'Atendimento Agendado?', type: 'select', options: [
+              { value: 'nao', label: 'Não (Imediato)' },
+              { value: 'sim', label: 'Sim' }
+            ]},
+            { id: 'dia_horario_agendado', label: 'Data e Hora do Agendamento', type: 'datetime-local', showIf: { field: 'agendado', value: 'sim' } },
+            { id: 'supervisor', label: 'Supervisor Responsável (Opcional)' },
+            { id: 'data-hora', label: 'Data e Hora da Solicitação', type: 'datetime-local' },
             { id: 'placa', label: 'Placa' },
             { id: 'modelo', label: 'Modelo' },
             { id: 'cor', label: 'Cor' },
@@ -144,31 +150,64 @@ export const DEPARTMENTS: Department[] = [
             { id: 'endereco-destino', label: 'Endereço de Destino' },
             { id: 'referencia-destino', label: 'Referência de Destino' },
             { id: 'quilometragem', label: 'Quilometragem' },
-            { id: 'quilometragem-total', label: 'Quilometragem Total' }
+            { id: 'quilometragem-total', label: 'Quilometragem Total' },
+            { id: 'adimplencia', label: 'Status de Adimplência (SIVIS)', type: 'select', options: [
+                { value: 'adimplente', label: 'Adimplente' },
+                { value: 'inadimplente', label: 'Inadimplente' },
+                { value: 'atrasado', label: 'Atrasado' },
+                { value: 'cancelado', label: 'Cancelado' },
+                { value: 'suspenso', label: 'Suspenso' }
+            ]},
+            { id: 'excepcionalidade', label: 'Parecer da Supervisão', type: 'select', options: [
+                { value: 'apto', label: 'Apto em Excepcionalidade' },
+                { value: 'inapto', label: 'Inapto (Recusado)' }
+            ], showIf: { field: 'adimplencia', value: ['inadimplente', 'atrasado', 'cancelado', 'suspenso'] } },
+            { id: 'motivo_excepcionalidade', label: 'Motivo / Parecer do Supervisor', type: 'textarea', showIf: { field: 'adimplencia', value: ['inadimplente', 'atrasado', 'cancelado', 'suspenso'] } }
         ],
-        messageTemplate: 
-`🚨 *BR CLUBE - NOVO ACIONAMENTO* 🚨\n\n
-*Protocolo:* {{protocolo}}\n
-*Data:* {{data-hora}}\n
-*Placa:* {{placa}}\n
-*Modelo:* {{modelo}}\n
-*Cor:* {{cor}}\n
-*Solicitante:* {{solicitante}}\n
-*Telefone:* {{telefone}}\n
-*Fator Gerador:* {{fator-gerador}}\n
-*Observações:* {{obs-gerador}}\n
-*Chave/Doc no local?:* {{chave-documento}}\n
-*Observação do fator gerador:* {{obs_chave_documento}}\n
-*Fácil acesso?:* {{facil-acesso}}\n
-*Observações sobre o acesso: {{obs_facil_acesso}}*
-*Serviço:* {{servico}}\n
-*Endereço de Origem:* {{endereco-origem}}\n
-*Referência do endereço de origem:* {{referencia-origem}}\n
-*Endereço de Destino:* {{endereco-destino}}\n
-*Referência do endereço de destino:* {{referencia-destino}}\n
-*Quilometragem (km):* {{quilometragem}} km\n
-*Quilometragem total (km):* {{quilometragem-total}} km\n
-`
+        messageTemplate: (data: any) => {
+          const isAgendado = data.agendado === 'sim';
+
+          // 1. Muda o título da mensagem com base no tipo
+          const titulo = isAgendado 
+            ? '📅 *BR CLUBE - ACIONAMENTO AGENDADO* 📅' 
+            : '🚨 *BR CLUBE - NOVO ACIONAMENTO (CORRENTE)* 🚨';
+
+          // 2. Formata as datas (se existirem) para tirar o "T" do meio
+          const dataSolicitacao = data['data-hora'] ? data['data-hora'].replace('T', ' ') : '';
+          const dataAgendada = data.dia_horario_agendado ? data.dia_horario_agendado.replace('T', ' ') : '';
+
+          // 3. Monta a mensagem dinamicamente
+          let msg = `${titulo}\n\n`;
+          msg += `*Protocolo:* ${data.protocolo || ''}\n`;
+          
+          if (isAgendado) {
+            msg += `*Data/Hora Agendada:* ${dataAgendada}\n`;
+          } else {
+            msg += `*Data da solicitação:* ${dataSolicitacao}\n`;
+          }
+          
+          msg += `*Supervisor:* ${data.supervisor || 'Não informado'}\n`;
+          msg += `*Placa:* ${data.placa || ''}\n`;
+          msg += `*Modelo:* ${data.modelo || ''}\n`;
+          msg += `*Cor:* ${data.cor || ''}\n`;
+          msg += `*Solicitante:* ${data.solicitante || ''}\n`;
+          msg += `*Telefone:* ${data.telefone || ''}\n`;
+          msg += `*Fator Gerador:* ${data['fator-gerador'] || ''}\n`;
+          msg += `*Observações:* ${data['obs-gerador'] || ''}\n`;
+          msg += `*Chave/Doc no local?:* ${data['chave-documento'] || ''}\n`;
+          msg += `*Obs do fator gerador:* ${data.obs_chave_documento || ''}\n`;
+          msg += `*Fácil acesso?:* ${data['facil-acesso'] || ''}\n`;
+          msg += `*Obs sobre o acesso:* ${data.obs_facil_acesso || ''}\n`;
+          msg += `*Serviço:* ${data.servico || ''}\n`;
+          msg += `*Endereço de Origem:* ${data['endereco-origem'] || ''}\n`;
+          msg += `*Referência (Origem):* ${data['referencia-origem'] || ''}\n`;
+          msg += `*Endereço de Destino:* ${data['endereco-destino'] || ''}\n`;
+          msg += `*Referência (Destino):* ${data['referencia-destino'] || ''}\n`;
+          msg += `*Quilometragem:* ${data.quilometragem || ''} km\n`;
+          msg += `*Quilometragem total:* ${data['quilometragem-total'] || ''} km\n`;
+
+          return msg;
+        }
     },
     {
       id: 'fechamento_assistencia',
@@ -188,7 +227,23 @@ export const DEPARTMENTS: Department[] = [
         { id: 'atendimento_domicilio', label: 'Atendimento no Domicílio?', type:'select', options: [
           { value: 'sim', label: 'Sim' },
           { value: 'nao', label: 'Não' }
-        ]}
+        ]},
+        { 
+          id: 'pendencia', 
+          label: 'Alguma pendência neste atendimento?', 
+          type: 'select', 
+          options: [
+            { value: 'nao', label: 'Não' }, 
+            { value: 'sim', label: 'Sim' }
+          ] 
+        },
+        { 
+          id: 'justificativa_pendencia', 
+          label: 'Qual é a pendência?', 
+          type: 'textarea', 
+          required: true,
+          showIf: { field: 'pendencia', value: 'sim' } 
+        }
       ]
     }
     ]

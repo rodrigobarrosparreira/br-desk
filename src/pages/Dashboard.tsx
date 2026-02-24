@@ -307,11 +307,37 @@ const Dashboard: React.FC = () => {
   const isBlank = currentSub?.isBlank;
   const isFormularioIntegrado = activeSubmodule === 'abertura_assistencia' || activeSubmodule === 'fechamento_assistencia';
 
-  const handleRegister = async () => {
+  const handleRegister = async (overrideStatus?: string) => {
     const isClosing = activeSubmodule === 'fechamento_assistencia';
-    const actionVerb = isClosing ? "ENCERRAR" : "REGISTRAR";
+    
+    // 👇 1. LIMPEZA DOS DADOS FANTASMAS 👇
+    // Criamos uma cópia segura dos dados atuais
+    const cleanedFormData = { ...formData };
+    
+    // Verificamos se o status real atual é um dos de inadimplência
+    const isInadimplente = ['inadimplente', 'atrasado', 'cancelado', 'suspenso'].includes(cleanedFormData.adimplencia);
+    
+    // SE ELE FOR ADIMPLENTE, apagamos à força os campos do supervisor para não irem pra planilha
+    if (!isInadimplente) {
+      cleanedFormData.excepcionalidade = '';
+      cleanedFormData.motivo_excepcionalidade = '';
+    }
 
-    if (isClosing && !formData.protocolo) {
+    // Calcula se foi recusado baseado nos dados limpos
+    const isRecusado = isInadimplente && cleanedFormData.excepcionalidade === 'inapto';
+
+    // 👇 2. LÓGICA DE STATUS BLINDADA 👇
+    let finalStatus = isClosing ? 'FECHADO' : 'ABERTO';
+    
+    if (typeof overrideStatus === 'string') {
+      finalStatus = overrideStatus; // Força 'EM ANÁLISE' se vier do botão azul
+    } else if (activeSubmodule === 'abertura_assistencia' && isRecusado) {
+      finalStatus = 'CANCELADO'; // Se foi julgado inapto REALMENTE, encerra
+    }
+
+    const actionVerb = finalStatus === 'CANCELADO' ? "RECUSAR E ENCERRAR" : (isClosing ? "ENCERRAR" : "REGISTRAR");
+
+    if (isClosing && !cleanedFormData.protocolo) {
       alert("ERRO: O Protocolo é obrigatório para encerrar um atendimento.");
       return;
     }
@@ -320,12 +346,13 @@ const Dashboard: React.FC = () => {
 
     setStatus({ submitting: true, success: null, error: null });
 
+    // 👇 3. MONTAGEM DO PAYLOAD (Enviando apenas os dados limpos) 👇
     const payload = {
-      ...formData,
+      ...cleanedFormData, // Usamos os dados limpos sem os fantasmas!
       action: 'salvar_ou_atualizar',
-      status: isClosing ? 'FECHADO' : 'ABERTO',
-      hora_solicitacao: isClosing ? formData.hora_solicitacao : new Date().toLocaleTimeString(),
-      hora_encerramento: isClosing ? new Date().toLocaleTimeString() : '',
+      status: finalStatus, 
+      hora_solicitacao: isClosing ? cleanedFormData.hora_solicitacao : new Date().toLocaleTimeString(),
+      hora_encerramento: (isClosing || finalStatus === 'CANCELADO') ? new Date().toLocaleTimeString() : '',
       form_id: activeSubmodule,
       user_email: profile?.email,
       atendente: profile?.full_name || profile?.email,
@@ -348,11 +375,16 @@ const Dashboard: React.FC = () => {
       if (jsonString) {
         const data = JSON.parse(jsonString);
         if (data.status === 'sucesso') {
-          alert(isClosing ? "✅ Atendimento Encerrado!" : "✅ Abertura Realizada!");
+          if (finalStatus === 'CANCELADO') {
+              alert("🚫 Atendimento Recusado e Encerrado no sistema!");
+          } else {
+              alert(isClosing ? "✅ Atendimento Encerrado!" : (finalStatus === 'EM ANÁLISE' ? "🔎 Enviado para Análise!" : "✅ Abertura Realizada!"));
+          }
+          
           setStatus({ submitting: false, success: true, error: null });
           loadTickets();
 
-          if (isClosing) {
+          if (isClosing || finalStatus === 'CANCELADO') {
             setFormData({});
             setActiveTemplate(null);
           }
@@ -403,8 +435,11 @@ const Dashboard: React.FC = () => {
   const renderField = (field: any) => {
     if (field.showIf) {
       const watchingValue = formData[field.showIf.field];
-      if (watchingValue !== field.showIf.value) {
-        return null;
+      // Permite que o showIf receba um array com várias condições
+      if (Array.isArray(field.showIf.value)) {
+         if (!field.showIf.value.includes(watchingValue)) return null;
+      } else {
+         if (watchingValue !== field.showIf.value) return null;
       }
     }
 
@@ -754,73 +789,126 @@ const Dashboard: React.FC = () => {
                 </div>
               )}
 
+              {/* === INÍCIO DA COLUNA DO FORMULÁRIO RECUPERADA === */}
               <div className={isFormularioIntegrado ? "xl:col-span-6" : "xl:col-span-8"}>
-                {activeSubmodule === 'abertura_assistencia' && (
-                  <div className="flex justify-end mb-4">
-                    <a 
-                      href="https://portal.sivisweb.com.br/loja/012/login" // LINK AQUI
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors border border-indigo-100 shadow-sm"
-                    >
-                      <i className="fa-solid fa-magnifying-glass-dollar text-sm"></i>
-                      Consultar Adimplência
-                    </a>
-                  </div>
-                )}
-                {activeSubmodule === 'enviar-associado' && (
-                  <div className="flex justify-end mb-4">
-                    <a 
-                      href="https://www2.correios.com.br/enderecador/encomendas/default.cfm?etq=3&tipo=des#form3" // LINK AQUI
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors border border-amber-100 shadow-sm"
-                    >
-                      <i className="fa-solid fa-envelope-open-text text-sm"></i>
-                      Cadastrar AR
-                    </a>
-                  </div>
-                )}
-
                 <FormCard title={activeTemplate ? activeTemplate.title : currentSub?.name || ''} icon={isTerm ? 'fa-file-signature' : 'fa-pen-to-square'}>
                   <form onSubmit={(e) => e.preventDefault()} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    {/* AQUI ESTÁ A MÁGICA QUE DESENHA OS CAMPOS: */}
                     {(activeTemplate ? activeTemplate.fields : (currentSub?.fields || [])).map(field => renderField(field))}
 
-                    <div className="md:col-span-2 flex justify-end gap-4 flex-wrap">
-                      {isFormularioIntegrado && (
-                        <button
-                          type="button"
-                          onClick={handleRegister}
-                          disabled={status.submitting}
-                          className={`group flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all duration-300 text-white shadow-lg hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed
-                              ${activeSubmodule === 'fechamento_assistencia'
-                              ? 'bg-red-600 hover:bg-red-500 shadow-red-500/30'
-                              : 'bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/30'
-                            }`}
-                        >
-                          <span>
-                            {status.submitting
-                              ? 'Processando...'
-                              : (activeSubmodule === 'fechamento_assistencia' ? 'Encerrar Atendimento' : 'Salvar Abertura')}
-                          </span>
-                          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center transition-colors">
-                            <i className={`fa-solid ${activeSubmodule === 'fechamento_assistencia' ? 'fa-lock' : 'fa-check'} text-sm`}></i>
+                    <div className="md:col-span-2 mt-4">
+                      
+                      {/* PAINEL EXCLUSIVO PARA ABERTURA */}
+                      {activeSubmodule === 'abertura_assistencia' && (
+                        <div className="flex flex-col gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                          
+                          {/* 👇 NOVO AVISO DE OBRIGATORIEDADE 👇 */}
+                          {!formData.adimplencia && (
+                            <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl shadow-sm animate-in fade-in slide-in-from-bottom-2">
+                               <i className="fa-solid fa-circle-exclamation text-amber-500 text-lg"></i>
+                               <span className="text-xs font-medium">
+                                 <strong>Ação Necessária:</strong> É obrigatório verificar e preencher o <strong>Status de Adimplência (SIVIS)</strong> no formulário para liberar o salvamento.
+                               </span>
+                            </div>
+                          )}
+
+                          {/* AGRUPAMENTO DOS BOTÕES */}
+                          <div className="flex flex-wrap items-center justify-end gap-3">
+                            {/* 1. Botão Verificar */}
+                            <button type="button" onClick={async () => { window.open("https://portal.sivisweb.com.br/loja/012/login", "_blank"); await handleRegister('EM ANÁLISE'); }} className="flex items-center gap-2 px-4 py-3 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors shadow-sm">
+                              <i className="fa-solid fa-magnifying-glass-dollar text-sm"></i> 1. Verificar Adimplência
+                            </button>
+
+                            {/* 2. Botão Consultar Supervisor */}
+                            {['inadimplente', 'atrasado', 'cancelado', 'suspenso'].includes(formData.adimplencia) && (
+                              <button type="button" onClick={() => handleSendWebhook(formData.protocolo, 'CUSTOM', `🚨 *SOLICITAÇÃO DE EXCEÇÃO*\nCliente: ${formData.associado}\nPlaca: ${formData.placa}\nStatus SIVIS: ${formData.adimplencia}\nPor favor, autorizar ou recusar no painel.`)} className="flex items-center gap-2 px-4 py-3 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors shadow-sm">
+                                <i className="fa-solid fa-user-shield text-sm"></i> 2. Consultar Supervisor
+                              </button>
+                            )}
+
+                            {/* 3. Botão Principal */}
+                            {(() => {
+                              const isInadimplente = ['inadimplente', 'atrasado', 'cancelado', 'suspenso'].includes(formData.adimplencia);
+                              const isRecusado = isInadimplente && formData.excepcionalidade === 'inapto';
+
+                              return (
+                                <button type="button" onClick={() => handleRegister()} disabled={status.submitting || !formData.adimplencia || (isInadimplente && (!formData.excepcionalidade || !formData.motivo_excepcionalidade))} className={`group flex items-center gap-3 px-8 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${isRecusado ? 'bg-red-600 hover:bg-red-500 shadow-red-500/30' : 'bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/30'}`}>
+                                  <span>{status.submitting ? 'Processando...' : isRecusado ? 'Encerrar (Inapto)' : 'Salvar Abertura'}</span>
+                                  <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center transition-colors">
+                                    <i className={`fa-solid ${isRecusado ? 'fa-ban' : 'fa-check'} text-xs`}></i>
+                                  </div>
+                                </button>
+                              );
+                            })()}
                           </div>
-                        </button>
+                        </div>
                       )}
 
-                      <button
-                        type="button"
-                        onClick={handleClearData}
-                        className="w-12 group flex items-center justify-center rounded-2xl font-bold text-xs uppercase tracking-widest transition-all duration-300 bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                        title="Limpar formulário"
-                      >
-                        <i className="fa-solid fa-eraser text-sm"></i>
-                      </button>
+                      {/* BOTÃO EXCLUSIVO PARA FECHAMENTO DE ASSISTÊNCIA */}
+                      {activeSubmodule === 'fechamento_assistencia' && (
+                        <div className="flex justify-end mt-4">
+                          {(() => {
+                             const hasPendencia = formData.pendencia === 'sim';
+                             const isNao = formData.pendencia === 'nao';
+                             const hasJustificativa = !!formData.justificativa_pendencia;
+                             
+                             // O botão só liga se marcou 'Não' OU (marcou 'Sim' e preencheu o motivo)
+                             const canSubmit = isNao || (hasPendencia && hasJustificativa);
+                             
+                             return (
+                               <button
+                                 type="button"
+                                 onClick={() => handleRegister()}
+                                 disabled={status.submitting || !canSubmit}
+                                 className={`group flex items-center gap-3 px-8 py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed
+                                   ${hasPendencia ? 'bg-amber-500 hover:bg-amber-400 shadow-amber-500/30' : 'bg-red-600 hover:bg-red-500 shadow-red-500/30'}`}
+                               >
+                                 <span>{status.submitting ? 'Processando...' : (hasPendencia ? 'Encerrar com Pendência' : 'Encerrar Atendimento')}</span>
+                                 <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center transition-colors">
+                                   <i className={`fa-solid ${hasPendencia ? 'fa-triangle-exclamation text-amber-600' : 'fa-lock text-red-600'} text-xs bg-white`}></i>
+                                 </div>
+                               </button>
+                             );
+                          })()}
+                        </div>
+                      )}
+
+                      {/* BOTÃO PARA OUTROS MÓDULOS QUE POSSAM EXISTIR */}
+                      {activeSubmodule !== 'abertura_assistencia' && activeSubmodule !== 'fechamento_assistencia' && isFormularioIntegrado && (
+                        <div className="flex justify-end mt-4">
+                           <button
+                             type="button"
+                             onClick={() => handleRegister()}
+                             disabled={status.submitting}
+                             className={`group flex items-center gap-3 px-8 py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 text-white shadow-lg bg-blue-600 hover:bg-blue-500 shadow-blue-500/30`}
+                           >
+                             <span>{status.submitting ? 'Processando...' : 'Salvar Alterações'}</span>
+                             <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center transition-colors">
+                               <i className={`fa-solid fa-save text-xs`}></i>
+                             </div>
+                           </button>
+                        </div>
+                      )}
+
+                      {/* BOTÃO LIMPAR PARA FORMULÁRIOS COMUNS (Cadastro, Termos) */}
+                      {!isFormularioIntegrado && (
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={handleClearData}
+                            className="w-12 h-10 group flex items-center justify-center rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                            title="Limpar formulário"
+                          >
+                            <i className="fa-solid fa-eraser text-sm"></i>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </form>
                 </FormCard>
               </div>
+              {/* === FIM DA COLUNA DO FORMULÁRIO === */}
 
               <div className={isFormularioIntegrado ? "xl:col-span-3" : "xl:col-span-4"}>
                 <FormMirror
