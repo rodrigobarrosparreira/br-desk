@@ -19,10 +19,8 @@ const WEBHOOK_OPTIONS = [
   { 
     id: 'PRESTADOR_CAMINHO', 
     label: '🚀 Prestador a Caminho', 
-    needsInput: true, // Mudamos para true para pedir a hora
-    inputType: 'time', 
-    inputLabel: 'Hora de Saída',
-    sheetField: 'hora_envio' // <--- A MÁGICA: Linka com o campo da planilha
+    isCaminho: true, // <--- NOVA FLAG: Ativa o layout de 3 campos
+    sheetField: 'hora_envio' 
   },
   { 
     id: 'NO_LOCAL', 
@@ -125,7 +123,7 @@ const MapModal: React.FC<MapModalProps> = ({ provider, customerAddress, apiKey, 
 
              {/* INFO CARD: CONTATO */}
              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <label className="text-[10px] uppercase font-bold text-slate-400 mb-2 block flex items-center gap-2">
+                <label className="text-[10px] uppercase font-bold text-slate-400 mb-2 flex items-center gap-2">
                    <i className="fa-solid fa-phone"></i> Contato
                 </label>
                 {info.telefone ? (
@@ -263,7 +261,7 @@ export const Select: React.FC<SelectProps> = ({ label, options, ...props }) => (
   <div className="space-y-1.5 group">
     <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1 group-focus-within:text-cyan-600 transition-colors">{label}</label>
     <div className="relative">
-      <select {...props} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-cyan-500/10 focus:border-cyan-500 outline-none transition-all duration-200 text-slate-700 text-sm font-medium bg-white shadow-sm hover:border-slate-300 appearance-none cursor-pointer">
+      <select {...props} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-4 focus:ring-cyan-500/10 focus:border-cyan-500 outline-none transition-all duration-200 text-slate-700 text-sm font-medium bg-white shadow-sm hover:border-slate-300 appearance-none cursor-pointer">
         <option value="">Selecione...</option>
         {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
       </select>
@@ -705,34 +703,20 @@ export const FormMirror: React.FC<FormMirrorProps> = ({ data, title, generateMes
           {renderPreview()}
         </div>
         <div className="mt-8 space-y-3">
+          
+          {/* 1. O BOTÃO PRINCIPAL (Baixar PDF ou Copiar Mensagem) */}
           {isTerm && pdfType ? (
-            // 👇 ADICIONADO O FRAGMENTO <> AQUI
-            <>
-              <button
-                disabled={!hasData || isGenerating}
-                onClick={handleDownloadNewPdf}
-                className="w-full py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isGenerating ? (
-                  <> <i className="fa-solid fa-circle-notch fa-spin"></i> <span>Gerando Arquivo Final...</span> </>
-                ) : (
-                  <> <i className="fa-solid fa-file-export"></i> <span>Baixar PDF Assinado</span> </>
-                )}
-              </button>
-
-              {/* 👇 NOVO BOTÃO: EXCLUSIVO DO TERMO DE CANCELAMENTO 👇 */}
-              {pdfType === 'termo_cancelamento' && (
-                <a
-                  href="https://painel.multi360.com.br/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg bg-emerald-500 text-white hover:bg-emerald-600"
-                >
-                  <i className="fa-brands fa-whatsapp text-lg"></i> 
-                  <span>Enviar para o Associado</span>
-                </a>
+            <button
+              disabled={!hasData || isGenerating}
+              onClick={handleDownloadNewPdf}
+              className="w-full py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isGenerating ? (
+                <> <i className="fa-solid fa-circle-notch fa-spin"></i> <span>Gerando Arquivo Final...</span> </>
+              ) : (
+                <> <i className="fa-solid fa-file-export"></i> <span>Baixar PDF Assinado</span> </>
               )}
-            </>
+            </button>
           ) : (
             <button
               disabled={!hasData}
@@ -746,6 +730,18 @@ export const FormMirror: React.FC<FormMirrorProps> = ({ data, title, generateMes
               )}
             </button>
           )}
+
+          {/* 2. O BOTÃO MULTI360 (Aparece sempre, para todos os submodulos) */}
+          <a
+            href="https://painel.multi360.com.br/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg bg-emerald-500 text-white hover:bg-emerald-600"
+          >
+            <i className="fa-brands fa-whatsapp text-lg"></i> 
+            <span>Enviar para o Associado</span>
+          </a>
+
         </div>
       </div>
     </div>
@@ -753,20 +749,34 @@ export const FormMirror: React.FC<FormMirrorProps> = ({ data, title, generateMes
 };
 
 // --- 7. EXPORTS FINAIS ---
-export const FormCard: React.FC<{ title: string; children: React.ReactNode; icon: string }> = ({ title, children, icon }) => (
-  <div className="bg-white rounded-2xl shadow-lg shadow-slate-200/40 border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500 h-full">
-    <div className="bg-slate-50/50 px-6 py-5 border-b border-slate-100 flex items-center space-x-4">
-      <div className="w-10 h-10 rounded-xl bg-cyan-500 flex items-center justify-center text-white shadow-md shadow-cyan-100">
-        <i className={`fa-solid ${icon} text-lg`}></i>
+export const FormCard = ({ title, icon, children, workspaceUrl }: { title: string, icon?: string, children: React.ReactNode, workspaceUrl?: string }) => {
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      <div className="bg-slate-50 border-b border-slate-100 p-4 px-6 flex justify-between items-center">
+        <h3 className="font-bold text-slate-700 flex items-center gap-2">
+          {icon && <i className={`fa-solid ${icon} text-slate-400`}></i>}
+          {title}
+        </h3>
+        
+        {/* 👇 NOVO BOTÃO DE WORKSPACE AO LADO DO TÍTULO 👇 */}
+        {workspaceUrl && (
+          <a 
+            href={workspaceUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors border border-blue-200 shadow-sm"
+            title="Abrir Grupo do Workspace"
+          >
+            <i className="fa-solid fa-users"></i> Workspace
+          </a>
+        )}
       </div>
-      <div>
-        <h2 className="text-lg font-extrabold text-slate-800 tracking-tight">{title}</h2>
-        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Entrada de Dados</p>
+      <div className="p-6">
+        {children}
       </div>
     </div>
-    <div className="p-6 lg:p-8">{children}</div>
-  </div>
-);
+  );
+};
 
 export const SuccessMessage: React.FC<{ message: string; onReset: () => void }> = ({ message, onReset }) => (
   <div className="bg-white border border-slate-100 shadow-2xl rounded-3xl p-10 text-center animate-in fade-in zoom-in duration-500 max-w-lg mx-auto">
@@ -821,6 +831,37 @@ export const TicketList: React.FC<TicketListProps> = ({
   const [hookInputVal, setHookInputVal] = React.useState<Record<string, string>>({});
   const [obsVal, setObsVal] = React.useState<Record<string, string>>({});
 
+  // 👇 NOVOS STATES PARA O PRESTADOR A CAMINHO 👇
+  const [saidaVal, setSaidaVal] = React.useState<Record<string, string>>({});
+  const [tempoVal, setTempoVal] = React.useState<Record<string, string>>({});
+  const [chegadaVal, setChegadaVal] = React.useState<Record<string, string>>({});
+
+  // 👇 FUNÇÃO QUE CALCULA O TEMPO AUTOMATICAMENTE 👇
+  const handleTimeChange = (protocolo: string, type: 'saida' | 'tempo', value: string) => {
+    let currentSaida = saidaVal[protocolo] || '';
+    let currentTempo = tempoVal[protocolo] || '';
+
+    if (type === 'saida') {
+       currentSaida = value;
+       setSaidaVal(prev => ({ ...prev, [protocolo]: value }));
+    } else {
+       currentTempo = value;
+       setTempoVal(prev => ({ ...prev, [protocolo]: value }));
+    }
+
+    // Se tiver os dois campos preenchidos, faz a conta!
+    if (currentSaida && currentTempo) {
+       const [h, m] = currentSaida.split(':').map(Number);
+       const date = new Date();
+       date.setHours(h, m + Number(currentTempo));
+       const outH = String(date.getHours()).padStart(2, '0');
+       const outM = String(date.getMinutes()).padStart(2, '0');
+       setChegadaVal(prev => ({ ...prev, [protocolo]: `${outH}:${outM}` }));
+    } else {
+       setChegadaVal(prev => ({ ...prev, [protocolo]: '' }));
+    }
+  };
+
   const toggleExpand = (protocolo: string) => { setExpandedId(expandedId === protocolo ? null : protocolo); };
 
   const handleHookChange = (protocolo: string, hookId: string) => {
@@ -834,35 +875,44 @@ export const TicketList: React.FC<TicketListProps> = ({
     if (!hookId) return;
 
     const config = WEBHOOK_OPTIONS.find(w => w.id === hookId);
-    const specificData = hookInputVal[protocolo] || '';
     const observation = obsVal[protocolo] || '';
 
-    if (config?.needsInput && !specificData) {
-      alert(`Por favor, preencha o campo: ${config.inputLabel}`);
-      return;
+    let finalData = '';
+    let fieldUpdate = undefined;
+
+    // 👇 NOVA LÓGICA DE ENVIO TRIPLO 👇
+    if (config?.isCaminho) {
+        const s = saidaVal[protocolo];
+        const t = tempoVal[protocolo];
+        const c = chegadaVal[protocolo];
+        if (!s || !t || !c) { 
+           alert("Por favor, preencha a hora de saída e o tempo estimado."); 
+           return; 
+        }
+        finalData = `*Hora de Saída:* ${s}\n*Tempo Estimado:* ${t} minutos\n*Previsão de Chegada:* ${c}`;
+        fieldUpdate = { key: config.sheetField, value: s }; // Manda a hora de saída para a planilha
+    } else {
+        // Lógica Padrão (1 input só)
+        const specificData = hookInputVal[protocolo] || '';
+        if (config?.needsInput && !specificData) { 
+           alert(`Por favor, preencha o campo: ${config.inputLabel}`); 
+           return; 
+        }
+        finalData = specificData;
+        fieldUpdate = (config?.sheetField && specificData) ? { key: config.sheetField, value: specificData } : undefined;
     }
 
-    if (hookId === 'CUSTOM' && !observation) {
-        alert("Por favor, escreva uma mensagem.");
-        return;
-    }
+    if (hookId === 'CUSTOM' && !observation) { alert("Por favor, escreva uma mensagem."); return; }
+    if (observation) { finalData = finalData ? `${finalData}\n📝 Obs: ${observation}` : observation; }
 
-    // Monta a mensagem final do chat
-    let finalData = specificData;
-    if (observation) {
-        finalData = finalData ? `${finalData}\n📝 Obs: ${observation}` : observation;
-    }
-
-    // Verifica se esse webhook precisa atualizar a planilha
-    const fieldUpdate = (config?.sheetField && specificData) 
-        ? { key: config.sheetField, value: specificData } 
-        : undefined;
-
-    // Envia tudo para o Dashboard processar
     onWebhook?.(protocolo, hookId, finalData, fieldUpdate);
 
+    // Limpa tudo depois de enviar
     setObsVal(prev => ({ ...prev, [protocolo]: '' }));
     setHookInputVal(prev => ({ ...prev, [protocolo]: '' }));
+    setSaidaVal(prev => ({ ...prev, [protocolo]: '' }));
+    setTempoVal(prev => ({ ...prev, [protocolo]: '' }));
+    setChegadaVal(prev => ({ ...prev, [protocolo]: '' }));
   };
 
   // 👇 CÁLCULO DE QUANTIDADES 👇
@@ -1018,7 +1068,7 @@ export const TicketList: React.FC<TicketListProps> = ({
                      {/* 2. ÁREA UNIFICADA DE WEBHOOK */}
                      {onWebhook && (
                        <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-wider flex items-center gap-2">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-wider flex items-center gap-2">
                              <i className="fa-solid fa-bullhorn text-cyan-500"></i> Atualizar Status / Reporte
                           </label>
                           
@@ -1041,8 +1091,8 @@ export const TicketList: React.FC<TicketListProps> = ({
                                </div>
                              </div>
 
-                             {/* B. INPUT ESPECÍFICO (Se necessário) */}
-                             {currentHookConfig?.needsInput && (
+                             {/* B.1 INPUT ESPECÍFICO (Layout Padrão 1 campo) */}
+                             {currentHookConfig?.needsInput && !currentHookConfig?.isCaminho && (
                                <div className="animate-in fade-in slide-in-from-top-1">
                                   <label className="text-[9px] font-bold text-cyan-600 uppercase ml-1 mb-1 block">
                                     {currentHookConfig.inputLabel}:
@@ -1053,6 +1103,40 @@ export const TicketList: React.FC<TicketListProps> = ({
                                      value={hookInputVal[t.protocolo] || ''}
                                      onChange={(e) => setHookInputVal(prev => ({ ...prev, [t.protocolo]: e.target.value }))}
                                   />
+                               </div>
+                             )}
+
+                             {/* 👇 B.2 INPUT NOVO: LAYOUT DE 3 CAMPOS (A Caminho) 👇 */}
+                             {currentHookConfig?.isCaminho && (
+                               <div className="grid grid-cols-3 gap-2 animate-in fade-in slide-in-from-top-1">
+                                 <div>
+                                   <label className="text-[9px] font-bold text-cyan-600 uppercase ml-1 mb-1 block">Saída:</label>
+                                   <input 
+                                     type="time" 
+                                     className="w-full px-2 py-2 bg-cyan-50 border border-cyan-200 rounded-lg text-xs font-bold text-cyan-800 outline-none focus:ring-2 focus:ring-cyan-500/20"
+                                     value={saidaVal[t.protocolo] || ''}
+                                     onChange={(e) => handleTimeChange(t.protocolo, 'saida', e.target.value)}
+                                   />
+                                 </div>
+                                 <div>
+                                   <label className="text-[9px] font-bold text-cyan-600 uppercase ml-1 mb-1 block">Minutos:</label>
+                                   <input 
+                                     type="number" 
+                                     placeholder="Ex: 40"
+                                     className="w-full px-2 py-2 bg-cyan-50 border border-cyan-200 rounded-lg text-xs font-bold text-cyan-800 outline-none focus:ring-2 focus:ring-cyan-500/20"
+                                     value={tempoVal[t.protocolo] || ''}
+                                     onChange={(e) => handleTimeChange(t.protocolo, 'tempo', e.target.value)}
+                                   />
+                                 </div>
+                                 <div>
+                                   <label className="text-[9px] font-bold text-slate-500 uppercase ml-1 mb-1 block">Chegada Est.:</label>
+                                   <input 
+                                     type="time" 
+                                     className="w-full px-2 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 outline-none"
+                                     value={chegadaVal[t.protocolo] || ''}
+                                     onChange={(e) => setChegadaVal(prev => ({ ...prev, [t.protocolo]: e.target.value }))} 
+                                   />
+                                 </div>
                                </div>
                              )}
 

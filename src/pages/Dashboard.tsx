@@ -791,7 +791,7 @@ const Dashboard: React.FC = () => {
 
               {/* === INÍCIO DA COLUNA DO FORMULÁRIO RECUPERADA === */}
               <div className={isFormularioIntegrado ? "xl:col-span-6" : "xl:col-span-8"}>
-                <FormCard title={activeTemplate ? activeTemplate.title : currentSub?.name || ''} icon={isTerm ? 'fa-file-signature' : 'fa-pen-to-square'}>
+                <FormCard title={activeTemplate ? activeTemplate.title : currentSub?.name || ''} icon={isTerm ? 'fa-file-signature' : 'fa-pen-to-square'} workspaceUrl={DEPARTMENTS.find(d => d.id === activeDept)?.workspaceUrl}>
                   <form onSubmit={(e) => e.preventDefault()} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     
                     {/* AQUI ESTÁ A MÁGICA QUE DESENHA OS CAMPOS: */}
