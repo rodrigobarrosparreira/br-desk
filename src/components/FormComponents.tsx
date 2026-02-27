@@ -292,12 +292,15 @@ export const RepeaterField: React.FC<RepeaterProps> = ({ field, value = [], onCh
 
   return (
     <div className="space-y-3">
+      {/* Cabeçalho com o Botão de Adicionar Superior */}
       <div className="flex items-center justify-between">
         <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">{field.label}</label>
         <button type="button" onClick={handleAddItem} className="text-[10px] font-bold uppercase tracking-wider text-cyan-600 bg-cyan-50 hover:bg-cyan-100 px-3 py-1.5 rounded-lg transition-colors flex items-center space-x-1">
           <i className="fa-solid fa-plus"></i><span>{field.addButtonLabel || 'Adicionar'}</span>
         </button>
       </div>
+      
+      {/* Lista de Itens */}
       <div className="space-y-3">
         {value.map((item, index) => (
           <div key={index} className="relative bg-slate-50 border border-slate-200 rounded-xl p-4 animate-in slide-in-from-left-2 duration-300">
@@ -315,7 +318,25 @@ export const RepeaterField: React.FC<RepeaterProps> = ({ field, value = [], onCh
             </div>
           </div>
         ))}
-        {value.length === 0 && <div className="text-center py-6 border-2 border-dashed border-slate-100 rounded-xl text-slate-400 text-xs italic">Nenhum item adicionado ainda.</div>}
+
+        {/* Mensagem de Vazio */}
+        {value.length === 0 && (
+          <div className="text-center py-6 border-2 border-dashed border-slate-100 rounded-xl text-slate-400 text-xs italic">
+            Nenhum item adicionado ainda.
+          </div>
+        )}
+
+        {/* 👇 NOVO BOTÃO INFERIOR (Aparece se houver 1 ou mais itens) 👇 */}
+        {value.length > 0 && (
+          <button 
+            type="button" 
+            onClick={handleAddItem} 
+            className="w-full mt-2 py-3.5 border-2 border-dashed border-cyan-200 text-cyan-600 rounded-xl hover:bg-cyan-50 hover:border-cyan-400 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-sm"
+          >
+            <i className="fa-solid fa-plus"></i>
+            Adicionar Mais Um Item
+          </button>
+        )}
       </div>
     </div>
   );
@@ -820,7 +841,7 @@ interface TicketListProps {
   onRefresh: () => void;
   currentAttendant: string;
   onQuickEdit?: (protocolo: string, action: 'abertura' | 'fechamento') => void;
-  onWebhook?: (protocolo: string, type: string, extraData?: string, fieldUpdate?: { key: string, value: string }) => void;
+  onWebhook?: (protocolo: string, type: string, extraData?: string, fieldUpdate?: { key: string, value: string }) => Promise<void> | void;
 }
 
 export const TicketList: React.FC<TicketListProps> = ({ 
@@ -835,6 +856,8 @@ export const TicketList: React.FC<TicketListProps> = ({
   const [saidaVal, setSaidaVal] = React.useState<Record<string, string>>({});
   const [tempoVal, setTempoVal] = React.useState<Record<string, string>>({});
   const [chegadaVal, setChegadaVal] = React.useState<Record<string, string>>({});
+
+  const [processingHooks, setProcessingHooks] = React.useState<Record<string, boolean>>({});
 
   // 👇 FUNÇÃO QUE CALCULA O TEMPO AUTOMATICAMENTE 👇
   const handleTimeChange = (protocolo: string, type: 'saida' | 'tempo', value: string) => {
@@ -870,7 +893,7 @@ export const TicketList: React.FC<TicketListProps> = ({
   };
 
 
-  const executeWebhook = (protocolo: string) => {
+  const executeWebhook = async (protocolo: string) => { // <--- Coloque o async aqui
     const hookId = selectedHook[protocolo];
     if (!hookId) return;
 
@@ -880,7 +903,6 @@ export const TicketList: React.FC<TicketListProps> = ({
     let finalData = '';
     let fieldUpdate = undefined;
 
-    // 👇 NOVA LÓGICA DE ENVIO TRIPLO 👇
     if (config?.isCaminho) {
         const s = saidaVal[protocolo];
         const t = tempoVal[protocolo];
@@ -890,9 +912,8 @@ export const TicketList: React.FC<TicketListProps> = ({
            return; 
         }
         finalData = `*Hora de Saída:* ${s}\n*Tempo Estimado:* ${t} minutos\n*Previsão de Chegada:* ${c}`;
-        fieldUpdate = { key: config.sheetField, value: s }; // Manda a hora de saída para a planilha
+        fieldUpdate = { key: config.sheetField, value: s };
     } else {
-        // Lógica Padrão (1 input só)
         const specificData = hookInputVal[protocolo] || '';
         if (config?.needsInput && !specificData) { 
            alert(`Por favor, preencha o campo: ${config.inputLabel}`); 
@@ -905,14 +926,21 @@ export const TicketList: React.FC<TicketListProps> = ({
     if (hookId === 'CUSTOM' && !observation) { alert("Por favor, escreva uma mensagem."); return; }
     if (observation) { finalData = finalData ? `${finalData}\n📝 Obs: ${observation}` : observation; }
 
-    onWebhook?.(protocolo, hookId, finalData, fieldUpdate);
+    // 👇 A MÁGICA DO SPINNER ACONTECE AQUI 👇
+    setProcessingHooks(prev => ({ ...prev, [protocolo]: true })); // Liga o spinner
 
-    // Limpa tudo depois de enviar
-    setObsVal(prev => ({ ...prev, [protocolo]: '' }));
-    setHookInputVal(prev => ({ ...prev, [protocolo]: '' }));
-    setSaidaVal(prev => ({ ...prev, [protocolo]: '' }));
-    setTempoVal(prev => ({ ...prev, [protocolo]: '' }));
-    setChegadaVal(prev => ({ ...prev, [protocolo]: '' }));
+    try {
+      // Espera o envio do webhook e a atualização da planilha terminar
+      await onWebhook?.(protocolo, hookId, finalData, fieldUpdate);
+    } finally {
+      // Quando terminar (com sucesso ou erro), desliga o spinner e limpa os campos
+      setProcessingHooks(prev => ({ ...prev, [protocolo]: false }));
+      setObsVal(prev => ({ ...prev, [protocolo]: '' }));
+      setHookInputVal(prev => ({ ...prev, [protocolo]: '' }));
+      setSaidaVal(prev => ({ ...prev, [protocolo]: '' }));
+      setTempoVal(prev => ({ ...prev, [protocolo]: '' }));
+      setChegadaVal(prev => ({ ...prev, [protocolo]: '' }));
+    }
   };
 
   // 👇 CÁLCULO DE QUANTIDADES 👇
@@ -1153,24 +1181,33 @@ export const TicketList: React.FC<TicketListProps> = ({
                                </div>
                              )}
 
-                             {/* D. BOTÃO DE AÇÃO PRINCIPAL (Substitui o Encerrar) */}
-                             <button
-                               onClick={() => executeWebhook(t.protocolo)}
-                               disabled={!currentHookId}
-                               className={`w-full py-3.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-md
-                                 ${!currentHookId 
-                                   ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
-                                   : isFinalizing 
-                                     ? 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/30' 
-                                     : 'bg-slate-800 text-white hover:bg-slate-900 shadow-slate-800/30'
-                                 }`}
-                             >
-                               {isFinalizing ? (
-                                 <> <i className="fa-solid fa-lock"></i> Encerrar e Reportar </>
-                               ) : (
-                                 <> <i className="fa-solid fa-paper-plane"></i> Enviar Atualização </>
-                               )}
-                             </button>
+                             {/* D. BOTÃO DE AÇÃO PRINCIPAL */}
+                             {(() => {
+                               const isHookProcessing = processingHooks[t.protocolo]; // Verifica se ESTE ticket está processando
+                               return (
+                                 <button
+                                   onClick={() => executeWebhook(t.protocolo)}
+                                   disabled={!currentHookId || isHookProcessing}
+                                   className={`w-full py-3.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-md
+                                     ${!currentHookId 
+                                       ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                                       : isHookProcessing
+                                         ? 'bg-cyan-600 text-white cursor-wait' // Cor de carregamento
+                                         : isFinalizing 
+                                           ? 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/30' 
+                                           : 'bg-slate-800 text-white hover:bg-slate-900 shadow-slate-800/30'
+                                     }`}
+                                 >
+                                   {isHookProcessing ? (
+                                     <> <i className="fa-solid fa-circle-notch fa-spin"></i> Processando... </>
+                                   ) : isFinalizing ? (
+                                     <> <i className="fa-solid fa-lock"></i> Encerrar e Reportar </>
+                                   ) : (
+                                     <> <i className="fa-solid fa-paper-plane"></i> Enviar Atualização </>
+                                   )}
+                                 </button>
+                               );
+                             })()}
                           </div>
                        </div>
                      )}

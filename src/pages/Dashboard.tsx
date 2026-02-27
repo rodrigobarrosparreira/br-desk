@@ -980,6 +980,34 @@ const Dashboard: React.FC = () => {
         onUpload={(prot, files) => handleFileUpload(prot, files)}
         isUploading={isUploading}
       />
+
+      {/* 👇 TELA DE CARREGAMENTO GLOBAL (OVERLAY) 👇 */}
+      {(isLoading || status.submitting) && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-5 max-w-sm text-center">
+            
+            {/* Círculo Giratório Customizado */}
+            <div className="relative">
+              <div className="w-16 h-16 border-4 border-slate-100 border-t-cyan-500 rounded-full animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <i className={`fa-solid ${isLoading ? 'fa-cloud-arrow-down text-cyan-500' : 'fa-cloud-arrow-up text-emerald-500'} text-xl animate-pulse`}></i>
+              </div>
+            </div>
+            
+            {/* Textos de Feedback */}
+            <div>
+              <h3 className="text-lg font-black text-slate-800">
+                {isLoading ? 'Puxando Dados...' : 'Sincronizando...'}
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                Aguarde enquanto comunicamos com a base de dados.
+              </p>
+            </div>
+
+          </div>
+        </div>
+      )}
+      {/* 👆 FIM DA TELA DE CARREGAMENTO 👆 */}
     </Layout>
   );
 };

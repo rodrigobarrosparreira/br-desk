@@ -94,8 +94,18 @@ const Layout: React.FC<LayoutProps> = ({ children, activeDept, activeSubmodule, 
         </div>
         
         {/* --- NOVO: CAMPO DE BUSCA (DESKTOP) --- */}
-        {!isCollapsed && (
-          <div className="px-4 mb-6">
+        <div className={`px-4 mb-6 ${isCollapsed ? 'flex justify-center' : ''}`}>
+          {isCollapsed ? (
+            // 👇 ÍCONE DE BUSCA QUANDO O MENU ESTÁ RECOLHIDO 👇
+            <button 
+              onClick={() => setIsCollapsed(false)} 
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-slate-400 hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors cursor-pointer"
+              title="Buscar formulário"
+            >
+              <i className="fa-solid fa-magnifying-glass"></i>
+            </button>
+          ) : (
+            // 👇 INPUT COMPLETO QUANDO O MENU ESTÁ ABERTO 👇
             <div className="relative group">
               <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-cyan-400 transition-colors"></i>
               <input 
@@ -111,8 +121,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeDept, activeSubmodule, 
                 </button>
               )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         <nav className="flex-1 overflow-y-auto px-4 space-y-2 custom-scrollbar pb-10">
           
