@@ -11,7 +11,7 @@ import {
 import { checkPermission } from '../utils/permissions';
 import { formatDateTime } from '../utils/Formatters';
 import { ProtocolWidget, QuickMessagesWidget } from '../components/QuickMessagesWidget';
-
+import { AttendanceWidget } from '../components/AttendanceWidget'; // <--- Adicione esta linha
 const MAPS_API_KEY = import.meta.env.VITE_MAPS_API_KEY;
 const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL;
 const API_TOKEN = import.meta.env.VITE_API_TOKEN;
@@ -954,6 +954,13 @@ const Dashboard: React.FC = () => {
             apiUrl = {GOOGLE_SCRIPT_URL}
             apiToken = {API_TOKEN}
           />
+
+          {/* 👇 O NOVO BOTÃO DE REGISTRO ENTRA AQUI 👇 */}
+           <AttendanceWidget 
+             currentDepartment={activeDept}
+             apiUrl={GOOGLE_SCRIPT_URL}
+             apiToken={API_TOKEN}
+           />
 
           {/* 👇 BOTÃO SPC - CORREÇÃO DE CENTRALIZAÇÃO 👇 */}
           {activeDept === 'billing' && (
