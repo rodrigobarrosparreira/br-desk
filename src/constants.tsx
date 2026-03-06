@@ -1244,6 +1244,11 @@ export const DEPARTMENTS: Department[] = [
     workspaceUrl: "https://mail.google.com/mail/u/0/?tab=rm&ogbl#chat/space/AAAAE-WFzcg",
     submodules: [
       {
+        id: 'tracking_management', 
+        name: 'Gestão de Instalações', 
+        parentId: 'tracking'
+      },
+      {
         id: 'termo-recebimento-rastreador',
         name: 'Termo de Recebimento do Rastreador',
         isTerm: true,
@@ -1359,23 +1364,34 @@ export const DEPARTMENTS: Department[] = [
             <div class="line"></div>
             <div>Assinatura do(a) prestador(a)</div>
         </div>
-          `
-        },
+        `
       },
-      {
-        id: 'protocolo-instalar-rastreador',
-        name: 'Protocolo: Agendar Instalação do Rastreador',
+    },
+    {
+      id: 'protocolo-instalar-rastreador',
+      name: 'Protocolo: Agendar Instalação do Rastreador',
         parentId: 'tracking',
         fields: [
+          {id: 'protocolo', label: 'Protocolo'},
           { id: 'tipo_protocolo', label: 'Escolha o tipo de protocolo', type: 'select', options: [
             { value: 'instalacao', label: 'Instalação'},
             { value: 'desinstalacao', label: 'Desinstalação'},
             { value: 'manutencao', label: 'Manutenção'}
           ]},
+          { id: 'tecnico', label: 'Técnico de Instalação'},
+          { id: 'telefone_tecnico', label: 'Telefone do Técnico'},
+          { id: 'plataforma', label: 'Plataforma', type: 'select', options: [
+              { value: 'redeloc', label: 'RedeLoc' },
+              { value: 'rastreie_brasil', label: 'Rastreie Brasil' },
+          ]},
+          { id: 'informado', label: 'técnico instalador devidamente informado sobre o protocolo pré instalação?', type: 'select', options: [
+            { value: 'sim', label: 'Sim'},
+            { value: 'nao', label: 'Não'}
+          ]},
           { id: 'local_instalado', label: 'Local Instalado', showIf: {field: 'tipo_protocolo', value: 'desinstalacao'}},
           { id: 'local_instalado', label: 'Local Instalado', showIf: {field: 'tipo_protocolo', value: 'manutencao'}},
           //{ id: 'protocolo', label: 'Protocolo'},
-          { id: 'nome', label: 'Nome Completo'},
+          { id: 'nome', label: 'Nome do Associado'},
           { id: 'cpf_cnpj', label: 'CPF/CNPJ'},
           { id: 'data_nasc', label: 'Data de Nascimento', type: 'date'},
           { id: 'email', label: 'E-mail'},
@@ -1391,10 +1407,8 @@ export const DEPARTMENTS: Department[] = [
           { id: 'renavam', label: 'RENAVAM'},
           { id: 'chassi', label: 'Chassi'},
           { id: 'imei', label: 'Nº do IMEI'},
-          { id: 'plataforma', label: 'Plataforma'},
           { id: 'endereco', label: 'Endereço'},
           { id: 'data_horario', label: 'Data/Horário', type: 'datetime-local'},
-          { id: 'tecnico', label: 'Técnico'}
         ],
         messageTemplate: (data : any) => {
           const dt_hr = formatDateTime(data.data_horario);
@@ -1406,13 +1420,17 @@ export const DEPARTMENTS: Department[] = [
           }
           const tipoFormatado = tipos[data.tipo_protocolo] || 'SERVIÇO';
           return `*PROTOCOLO DE AGENDAMENTO PARA ${tipoFormatado} DE RASTREADOR*
+          
+          *Protocolo:* ${data.protocolo || ''}
+          
+          *Nome completo:* ${data.nome || ''}
+          
+          *CPF/CNPJ:* ${data.cpf_cnpj || ''}
+          
+          *Técnico:* ${data.tecnico || ''}
 
-*Protocolo:* ${data.protocolo || ''}
-
-*Nome completo:* ${data.nome || ''}
-
-*CPF/CNPJ:* ${data.cpf_cnpj || ''}
-
+          *Telefone do Técnico:* ${data.telefone_tecnico || ''}
+          
 *Data de nascimento:* ${dtNasc || ''}
 
 *E-mail:* ${data.email || ''}
@@ -1422,6 +1440,8 @@ export const DEPARTMENTS: Department[] = [
 *Gênero:* ${data.genero || ''}
 
 *Placa:* ${data.placa || ''}
+
+*Suporte da Plataforma:* ${data.plataforma === 'redeloc' ? '(81) 99164-9950' : '(31) 99068-4631'}
 
 *Modelo:* ${data.veiculo || ''}
 
@@ -1443,7 +1463,6 @@ ${data.local_instalado ? `*Local Instalado:* ${data.local_instalado || ''}\n` : 
 
 *Data:* ${dt_hr || ''}
 
-*Técnico:* ${data.tecnico || ''}
           `
         }
       },

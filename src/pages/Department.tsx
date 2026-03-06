@@ -8,6 +8,7 @@ import { TicketList } from '../components/TicketList';
 import { QuickMessagesWidget, ProtocolWidget } from '../components/QuickMessagesWidget';
 
 
+
 const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL;
 const API_TOKEN = import.meta.env.VITE_API_TOKEN;
 

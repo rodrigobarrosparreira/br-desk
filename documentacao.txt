@@ -1,0 +1,187 @@
+
+
+# 📘 Guia Definitivo de Manutenção e Expansão - BR Desk
+
+Bem-vindo(a) ao projeto BR Desk. Este sistema foi construído com **React (Vite) + TypeScript + TailwindCSS** e utiliza o **React Router** para navegação. O Backend é alimentado por uma API construída no **Google Apps Script** (planilhas Google).
+
+Este guia foi feito para lhe dar total autonomia para adicionar novas funcionalidades, formulários e documentos em PDF ao sistema.
+
+---
+
+## 1. Arquitetura e Estrutura de Pastas
+
+* 📁 **`src/pages/`**: Contém as telas principais.
+* `Home.tsx`: Tela de boas-vindas e seleção de departamento.
+* `Department.tsx`: Lista os botões (submódulos) e os tickets em aberto do departamento.
+* `FormView.tsx`: Renderiza o formulário inteligente, o espelho lateral e a pesquisa de prestadores.
+
+
+* 📁 **`src/hooks/`**:
+* `useCRM.ts`: O "Motor" de dados. É aqui que fazemos os *fetches* para o Google Script, carregamos os tickets e enviamos webhooks.
+
+
+* ⚙️ **Arquivos Chave de Configuração**:
+* **`src/constants.tsx`**: O cérebro da UI. É aqui que todos os departamentos, botões e formulários (perguntas) são definidos.
+* **`src/types.ts`**: As interfaces do TypeScript. Qualquer novo tipo de documento ou estrutura de dados tem de ser declarado aqui primeiro.
+* **`src/PDFTemplates.tsx`**: Guarda os moldes em HTML que são convertidos em PDF.
+* **`src/components/FormComponents.tsx`**: Onde os componentes visuais do formulário (Inputs, Selects, botão de Gerar PDF) são desenhados.
+
+
+
+---
+
+## 2. Anatomia dos Campos de Formulário (Fields)
+
+Os formulários são gerados dinamicamente com base no que está escrito no ficheiro `constants.tsx`. Um campo possui a seguinte estrutura básica e avançada:
+
+### Tipos de Campos Disponíveis:
+
+1. **`text` / `number` / `date**`: Campos de entrada simples.
+2. **`textarea`**: Caixa de texto com múltiplas linhas (ideal para observações).
+3. **`select`**: Lista suspensa. **Obrigatório** passar a propriedade `options`.
+4. **`repeater`**: Um campo complexo que permite adicionar múltiplos itens (ex: adicionar várias fotos ou despesas). O componente `RepeaterField` (no `FormComponents.tsx`) gere automaticamente um *array* de strings.
+
+### A Lógica Condicional (`showIf`):
+
+Você pode fazer uma pergunta aparecer apenas se o usuário tiver respondido algo específico numa pergunta anterior.
+
+**Exemplo Completo de um Formulário em `constants.tsx`:**
+
+```typescript
+fields: [
+  // Campo Select Básico
+  { 
+    id: 'possui_pendencia', 
+    label: 'Possui Pendência?', 
+    type: 'select', 
+    required: true, 
+    options: ['Sim', 'Não'] 
+  },
+  
+  // Condicional Simples: Só aparece se a pendência for 'Sim'
+  { 
+    id: 'justificativa_pendencia', 
+    label: 'Qual a pendência?', 
+    type: 'textarea', 
+    showIf: { field: 'possui_pendencia', value: 'Sim' } 
+  },
+
+  // Condicional Múltipla: Aparece se o tipo for Guincho OU Táxi
+  {
+    id: 'km_rodado',
+    label: 'Quilometragem',
+    type: 'text',
+    showIf: { field: 'servico_acionado', value: ['Guincho', 'Táxi'] } // Aceita Arrays!
+  },
+
+  // Campo Repeater (O utilizador pode adicionar vários itens na tela)
+  {
+    id: 'lista_pecas',
+    label: 'Peças Trocadas',
+    type: 'repeater'
+  }
+]
+
+```
+
+---
+
+## 3. Como criar um NOVO TERMO (Gerador de PDF)
+
+Adicionar um novo documento PDF exige conectar 4 ficheiros para que o TypeScript e o Gerador de PDFs entendam a nova funcionalidade perfeitamente. Siga esta ordem:
+
+### Passo 1: Informar o TypeScript (`src/types.ts`)
+
+Se o novo termo for, por exemplo, um "Termo de Confissão", precisamos dizer ao sistema que esse nome é válido.
+Procure o tipo `PdfType` ou adicione-o na interface do Submódulo no seu `types.ts`:
+
+```typescript
+// Exemplo de como pode estar no types.ts
+export type PdfType = 'Termo de Recusa' | 'Termo de Fim de Atendimento' | 'Termo de Confissão'; 
+// (Adicione o seu novo termo à lista de tipos permitidos)
+
+```
+
+### Passo 2: Preparar o HTML (`src/PDFTemplates.tsx`)
+
+Crie a constante com o texto base do seu PDF. Use `{{nome_do_campo}}` para as variáveis que vêm do formulário:
+
+```typescript
+export const TERMO_CONFISSAO_HTML = `
+  <div style="font-family: Arial; text-align: justify; padding: 20px;">
+     <h2 style="text-align: center;">TERMO DE CONFISSÃO DE DÍVIDA</h2>
+     <p>Eu, <b>{{associado}}</b>, confirmo a dívida referente ao veículo de placa <b>{{placa}}</b>.</p>
+  </div>
+`;
+
+```
+
+### Passo 3: Mapear o Botão e as Perguntas (`src/constants.tsx`)
+
+Vá ao departamento desejado e crie o novo botão de submódulo, ligando os pontos:
+
+```typescript
+import { TERMO_CONFISSAO_HTML } from './PDFTemplates';
+
+// Dentro do array de submodules do departamento:
+{
+  id: 'termo_confissao',
+  name: 'Termo de Confissão',
+  icon: 'fa-file-signature',
+  isTerm: true,                      // 👈 Essencial: Diz à tela para habilitar o botão "Gerar PDF"
+  pdfType: 'Termo de Confissão',     // 👈 O tipo exato que adicionámos no types.ts
+  fields: [
+    { id: 'associado', label: 'Nome do Associado', type: 'text', required: true },
+    { id: 'placa', label: 'Placa', type: 'text', required: true }
+  ],
+  messageTemplate: TERMO_CONFISSAO_HTML // 👈 Liga o HTML do Passo 2
+}
+
+```
+
+### Passo 4: Tratar a exportação no Gerador (`src/components/FormComponents.tsx`)
+
+Abra o `FormComponents.tsx` e procure pelo componente `<FormMirror />` (ou pela função de geração do PDF, geralmente `handleGeneratePDF` ou similar usando a biblioteca `html2pdf.js` ou `jspdf`).
+*Se o seu PDF tiver regras específicas de margem ou precisar de um nome de ficheiro especial, mapeie-o aqui:*
+
+```typescript
+// Dentro de FormComponents.tsx, na função que gera o PDF:
+const fileName = pdfType === 'Termo de Confissão' 
+  ? `Confissao_${data.placa}.pdf` 
+  : `${pdfType}_${data.placa || 'Documento'}.pdf`;
+
+```
+
+---
+
+## 4. Como atualizar o Banco de Dados (Backend - Google Sheets)
+
+Sempre que você adicionar um `id` novo numa pergunta em `constants.tsx` (ex: `{ id: 'cor_carro' }`), esse dado **não vai aparecer magicamente no Google Sheets**.
+
+O React apenas manda o pacote de dados para o Google Apps Script. Para a coluna ser gravada na planilha, você precisa ajustar o backend:
+
+1. Abra o painel do Google Apps Script (`.gs`) que controla a planilha.
+2. Procure pela função `salvarOuAtualizarAtendimento(dados)`.
+3. Procure o array gigante chamado `linhaDados = [ ... ]`. Este array mapeia exatamente as colunas (A, B, C...).
+4. Adicione o seu novo campo na posição correta do array.
+```javascript
+const linhaDados = [
+  protocoloAlvo,               // Coluna A (Índice 0)
+  getVal(dados.associado, 1),  // Coluna B
+  getVal(dados.placa, 2),      // Coluna C
+  // ...
+  getVal(dados.cor_carro, 52)  // 👈 SEU NOVO CAMPO (Ex: Coluna BA / Índice 52)
+];
+
+```
+
+
+5. **CRÍTICO:** Após modificar o Apps Script, você deve clicar em "Implantar" > "Nova Implantação" e usar a nova URL gerada, ou simplesmente clicar no lápis e sobrepor a versão atual para que o React sinta a mudança.
+
+---
+
+## Dicas Rápidas de Debug (Resolução de Problemas)
+
+* **Tela em Branco (Página não carrega):** Quase sempre é um erro de importação nas rotas. Verifique o `App.tsx` para garantir que o componente está listado no `lazy()` e verifique a Aba "Console" do F12 (DevTools).
+* **Campo não aparece (showIf quebrado):** Certifique-se de que o `id` da pergunta "mãe" está escrito com a exata mesma ortografia dentro do `{ field: 'id_da_pergunta' }`.
+* **TypeScript chorando vermelho:** Se usou uma propriedade que não existe num componente, abra o ficheiro do componente, olhe para a `interface Props { ... }` no topo, e adicione o tipo da propriedade (com `?` se for opcional).

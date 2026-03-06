@@ -10,6 +10,8 @@ import {
   SuccessMessage, ProviderSearch, UploadModal, SmartSearchInput 
 } from '../components/FormComponents';
 import { TicketList } from '../components/TicketList';
+import { TrackingManager } from '../components/TrackingManager';
+
 
 const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL;
 const API_TOKEN = import.meta.env.VITE_API_TOKEN;
@@ -30,17 +32,26 @@ const FormView: React.FC = () => {
   const [activeTemplate, setActiveTemplate] = useState<Template | null>(null);
   const [status, setStatus] = useState<FormSubmissionStatus>({ submitting: false, success: null, error: null });
   const [formData, setFormData] = useState<Record<string, any>>({});
-  
+  const [isEditMode, setIsEditMode] = useState(false);
+
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   const [isSearching, setIsSearching] = useState(false);
   const [providerResults, setProviderResults] = useState<PrestadorResultado[] | null>(null);
   const [searchRadius, setSearchRadius] = useState(10);
 
+  const [copiedAction, setCopiedAction] = useState<string | null>(null);
+
   // Recebe os dados do CRM enviados pela tela do Department
   useEffect(() => {
     if (location.state?.ticketData) {
       setFormData(location.state.ticketData);
+      
+      // 👇 Verifica se veio como edição
+      if (location.state?.isEditMode) {
+        setIsEditMode(true);
+      }
+      
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
@@ -157,7 +168,15 @@ const FormView: React.FC = () => {
         departamento: activeDept,
         token_acesso: API_TOKEN
       };
-    } else {
+    } else if (activeSubmodule === 'protocolo-instalar-rastreador') { 
+      // 🛰️ MODO RASTREAMENTO (Aponte para o ID do submódulo que contém aqueles fields que me mandou) 🛰️
+      payload = {
+        action: 'salvar_protocolo_rastreio',
+        ...cleanedFormData,
+        token_acesso: API_TOKEN
+      };
+    }
+    else {
       // 🚑 MODO PADRÃO (Assistência, etc.) 🚑
       payload = {
         ...cleanedFormData,
@@ -191,6 +210,24 @@ const FormView: React.FC = () => {
           
           setStatus({ submitting: false, success: true, error: null });
           loadTickets();
+
+          if (activeSubmodule === 'protocolo-instalar-rastreador') { 
+              const webhookUrl = "https://chat.googleapis.com/v1/spaces/AAQA_9VXbIs/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=xYp-47r0nPVdhG8o2MDBdnnhfDDpz-XV78N0OP91oyw";
+              
+              // Se for edição, manda ícone de lápis. Se for novo, manda satélite.
+              const tituloWebhook = isEditMode ? "📝 *SERVIÇO ATUALIZADO (EDIÇÃO)*" : "🛰️ *NOVO SERVIÇO AGENDADO*";
+              
+              const mensagem = `${tituloWebhook}\n\n*Associado:* ${cleanedFormData.nome || cleanedFormData.associado || 'Não informado'}\n*Placa:* ${cleanedFormData.placa || 'Sem Placa'}\n*Protocolo:* ${cleanedFormData.protocolo || ''}\n*Serviço:* ${(cleanedFormData.tipo_protocolo || '').toUpperCase()}\n*Operador:* ${profile?.full_name || 'Sistema'}`;
+              
+              fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: mensagem })
+              }).catch(err => console.error("Erro ao enviar webhook:", err));
+              
+              // Desativa o modo de edição após salvar
+              setIsEditMode(false);
+          }
 
           if (isClosing || finalStatus === 'CANCELADO') {
             setFormData({});
@@ -272,6 +309,7 @@ const FormView: React.FC = () => {
   const handleClearData = () => {
     if (window.confirm("Tem certeza que deseja limpar todos os campos?")) {
       setFormData({});
+      setIsEditMode(false);
       setProviderResults(null);
       setStatus({ submitting: false, success: null, error: null });
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -346,6 +384,20 @@ const FormView: React.FC = () => {
 
   if (!currentSub) return null;
 
+  // 👇 INTERCEPTADOR MÁGICO: Se for a tela de gestão, renderiza a tabela inteira e ignora o resto 👇
+  if (activeSubmodule === 'tracking_management') {
+    return (
+      <div className="animate-in fade-in duration-500">
+        <TrackingManager 
+          apiUrl={GOOGLE_SCRIPT_URL} 
+          apiToken={API_TOKEN} 
+          webhookUrl="COLE_AQUI_A_SUA_URL_DO_WEBHOOK_DO_GOOGLE_CHAT" 
+        />
+      </div>
+    );
+  }
+
+  // 👇 SE NÃO FOR GESTÃO DE RASTREIO, CONTINUA A RENDERIZAR O FORMULÁRIO NORMAL 👇
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
       {/* CABEÇALHO DO FORMULÁRIO */}
@@ -465,9 +517,32 @@ const FormView: React.FC = () => {
                         disabled={status.submitting} 
                         className="group flex items-center gap-3 px-8 py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 text-white shadow-lg bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/30"
                       >
-                        <span>{status.submitting ? 'Salvando...' : 'Registrar Atendimento'}</span>
+                        <span>{status.submitting ? 'Salvando...' : (isEditMode ? 'Salvar Edição' : 'Salvar Protocolo')}</span>
                         <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center transition-colors">
                           <i className="fa-solid fa-check text-xs"></i>
+                        </div>
+                      </button>
+                    </div>
+                  )}
+                  {/* 👇 BOTÃO EXCLUSIVO PARA FORMULÁRIO DE RASTREAMENTO 👇 */}
+                  {activeSubmodule === 'protocolo-instalar-rastreador' && (
+                    <div className="flex justify-end mt-4 gap-3">
+                      <button 
+                        type="button" 
+                        onClick={handleClearData} 
+                        className="px-6 py-3.5 bg-slate-100 text-slate-500 hover:bg-slate-200 rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
+                      >
+                        Limpar
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={() => handleRegister()} 
+                        disabled={status.submitting} 
+                        className="group flex items-center gap-3 px-8 py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 text-white shadow-lg bg-teal-600 hover:bg-teal-500 shadow-teal-500/30"
+                      >
+                        <span>{status.submitting ? 'Salvando...' : 'Salvar Protocolo'}</span>
+                        <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center transition-colors">
+                          <i className="fa-solid fa-satellite-dish text-xs"></i>
                         </div>
                       </button>
                     </div>
@@ -480,6 +555,59 @@ const FormView: React.FC = () => {
           {/* O ESPELHO / PRESTADORES (Direita) */}
           <div className={isFormularioIntegrado ? "xl:col-span-3" : "xl:col-span-4"}>
             <FormMirror data={formData} title={activeTemplate ? activeTemplate.title : currentSub.name} generateMessage={generateCopyMessage} pdfType={currentSub?.pdfType} isTerm={isTerm} isBlank={isBlank} />
+            
+            {/* 👇 PAINEL DE CÓPIA EXCLUSIVO PARA RASTREAMENTO 👇 */}
+            {activeSubmodule === 'protocolo-instalar-rastreador' && (
+              <div className="mt-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 animate-in fade-in slide-in-from-bottom-2">
+                 <h3 className="text-xs font-black text-slate-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                   <i className="fa-solid fa-copy text-teal-500"></i> Mensagens Prontas
+                 </h3>
+                 <div className="flex flex-col gap-3">
+                   
+                   {/* 1. MENSAGEM PRESTADOR */}
+                   <button type="button" onClick={() => {
+                     const msg = `🛠️ *ORDEM DE SERVIÇO - ${(formData.tipo_protocolo || 'Instalação').toUpperCase()}*\n\n*Cliente:* ${formData.nome || formData.associado || '-'}\n*Telefone:* ${formData.telefone || '-'}\n*Veículo:* ${formData.veiculo || '-'} | *Cor:* ${formData.cor || '-'} | *Ano:* ${formData.ano || '-'}\n*Placa:* ${formData.placa || '-'}\n*Chassi:* ${formData.chassi || '-'}\n*Endereço:* ${formData.endereco || '-'}\n*Data Agendada:* ${formData.data_horario ? new Date(formData.data_horario).toLocaleString('pt-BR') : '-'}\n*Equipamento (IMEI):* ${formData.imei || '-'}`;
+                     navigator.clipboard.writeText(msg); 
+                     setCopiedAction('prestador'); setTimeout(() => setCopiedAction(null), 2000);
+                   }} className="flex items-center justify-between p-3 bg-slate-50 hover:bg-teal-50 border border-slate-100 hover:border-teal-200 rounded-xl transition-all text-left group">
+                      <div>
+                        <span className="block text-xs font-bold text-slate-700 group-hover:text-teal-700">Para o Técnico</span>
+                        <span className="block text-[10px] text-slate-400 mt-0.5">Veículo, Endereço, Equipamento...</span>
+                      </div>
+                      <i className={`text-lg transition-all ${copiedAction === 'prestador' ? 'fa-solid fa-check text-emerald-500 scale-110' : 'fa-regular fa-clipboard text-slate-400 group-hover:text-teal-500'}`}></i>
+                   </button>
+
+                   {/* 2. MENSAGEM PLATAFORMA */}
+                   <button type="button" onClick={() => {
+                     const msg = `💻 *CADASTRO DE VEÍCULO - ${(formData.plataforma || 'Plataforma').toUpperCase()}*\n\n*Cliente:* ${formData.nome || formData.associado || '-'}\n*CPF/CNPJ:* ${formData.cpf_cnpj || '-'}\n*Veículo:* ${formData.veiculo || '-'} | *Cor:* ${formData.cor || '-'} | *Ano:* ${formData.ano || '-'}\n*Placa:* ${formData.placa || '-'}\n*Chassi:* ${formData.chassi || '-'}\n*Renavam:* ${formData.renavam || '-'}\n*Equipamento (IMEI):* ${formData.imei || '-'}`;
+                     navigator.clipboard.writeText(msg); 
+                     setCopiedAction('plataforma'); setTimeout(() => setCopiedAction(null), 2000);
+                   }} className="flex items-center justify-between p-3 bg-slate-50 hover:bg-blue-50 border border-slate-100 hover:border-blue-200 rounded-xl transition-all text-left group">
+                      <div>
+                        <span className="block text-xs font-bold text-slate-700 group-hover:text-blue-700">Para a Plataforma</span>
+                        <span className="block text-[10px] text-slate-400 mt-0.5">Dados fiscais, Renavam, Chassi...</span>
+                      </div>
+                      <i className={`text-lg transition-all ${copiedAction === 'plataforma' ? 'fa-solid fa-check text-emerald-500 scale-110' : 'fa-regular fa-clipboard text-slate-400 group-hover:text-blue-500'}`}></i>
+                   </button>
+
+                   {/* 3. MENSAGEM ASSOCIADO */}
+                   <button type="button" onClick={() => {
+                     const msg = `Olá, ${formData.nome || formData.associado || '-'}! Tudo bem?\n\nO seu serviço de *${(formData.tipo_protocolo || 'Instalação').toUpperCase()}* foi agendado.\n\n📅 *Data/Hora:* ${formData.data_horario ? new Date(formData.data_horario).toLocaleString('pt-BR') : '-'}\n📍 *Local:* ${formData.endereco || '-'}\n👨‍🔧 *Técnico:* ${formData.tecnico || '-'}\n\nQualquer dúvida, estamos à disposição!`;
+                     navigator.clipboard.writeText(msg); 
+                     setCopiedAction('associado'); setTimeout(() => setCopiedAction(null), 2000);
+                   }} className="flex items-center justify-between p-3 bg-slate-50 hover:bg-emerald-50 border border-slate-100 hover:border-emerald-200 rounded-xl transition-all text-left group">
+                      <div>
+                        <span className="block text-xs font-bold text-slate-700 group-hover:text-emerald-700">Para o Cliente</span>
+                        <span className="block text-[10px] text-slate-400 mt-0.5">Confirmação de data e local...</span>
+                      </div>
+                      <i className={`text-lg transition-all ${copiedAction === 'associado' ? 'fa-solid fa-check text-emerald-500 scale-110' : 'fa-regular fa-clipboard text-slate-400 group-hover:text-emerald-500'}`}></i>
+                   </button>
+
+                 </div>
+              </div>
+            )}
+            {/* 👆 FIM DO PAINEL DE CÓPIA 👆 */}
+
             {activeSubmodule === 'abertura_assistencia' && (
               <ProviderSearch onSearch={(addr, type) => handleSearchProviders(addr, type)} isSearching={isSearching} results={providerResults} onSelect={handleSelectProvider} radius={searchRadius} onRadiusChange={setSearchRadius} apiKey={MAPS_API_KEY} scriptUrl={GOOGLE_SCRIPT_URL} />
             )}
